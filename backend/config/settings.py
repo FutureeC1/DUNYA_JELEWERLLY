@@ -6,12 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me')
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = [
-    'dunya-jewellery-backend.railway.app',
-    'localhost',
-    '127.0.0.1',
-    '*'
-]
+ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
