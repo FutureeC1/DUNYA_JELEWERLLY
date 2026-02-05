@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 
 def health(request):
-    return JsonResponse({"status": "ok"}, status=200)
+    return JsonResponse({"ok": True}, status=200)
 
 urlpatterns = [
     path("health", health),
