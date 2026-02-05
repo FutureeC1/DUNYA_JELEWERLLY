@@ -6,7 +6,11 @@ from .serializers import ProductSerializer, OrderSerializer
 
 class HealthCheckView(View):
     def get(self, request):
-        return JsonResponse({"status": "healthy"}, status=200)
+        return JsonResponse({
+            "status": "healthy",
+            "service": "dunya-jewellery-backend",
+            "version": "1.0.0"
+        }, status=200)
 
 class ProductListView(generics.ListAPIView):
     queryset = Product.objects.all()
