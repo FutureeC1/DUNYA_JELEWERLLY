@@ -1,0 +1,22 @@
+from django.http import JsonResponse
+from django.views import View
+from rest_framework import generics
+from .models import Product, Order
+from .serializers import ProductSerializer, OrderSerializer
+
+class HealthCheckView(View):
+    def get(self, request):
+        return JsonResponse({"status": "healthy"}, status=200)
+
+class ProductListView(generics.ListAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+class ProductDetailView(generics.RetrieveAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    lookup_field = 'slug'
+
+class OrderCreateView(generics.CreateAPIView):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
