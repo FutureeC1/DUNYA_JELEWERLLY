@@ -147,3 +147,8 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.AllowAny",
     ]
 }
+
+# Definitive database verification - remove after confirming PostgreSQL connection
+from django.db import connection
+print("DB vendor:", connection.vendor)
+print("DB name:", connection.settings_dict.get("NAME"))
