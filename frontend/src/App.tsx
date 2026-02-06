@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import ProductDetail from "./pages/ProductDetail";
 import { useUiStore } from "./store/uiStore";
+import { flushOrderQueue } from "./utils/api";
 
 export default function App() {
   const theme = useUiStore((state) => state.theme);
@@ -22,6 +23,12 @@ export default function App() {
       root.classList.remove("dark");
     }
   }, [theme]);
+
+  useEffect(() => {
+    flushOrderQueue();
+    const id = setInterval(flushOrderQueue, 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
