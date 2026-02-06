@@ -22,6 +22,7 @@ const uz = {
   newArrivals: "Yangi kolleksiya",
   catalog: {
     title: "Kumush uzuklar katalogi",
+    dataStale: "Ma’lumotlar eskirgan bo‘lishi mumkin",
     search: "Nom bo‘yicha qidirish",
     sort: "Saralash",
     sortOptions: {
@@ -46,6 +47,7 @@ const uz = {
     remove: "O‘chirish"
   },
   checkout: {
+    orderQueued: "Server vaqtincha ishlamayapti. Buyurtma saqlandi va avtomatik yuboriladi.",
     title: "Buyurtma rasmiylashtirish",
     name: "Ism",
     phone: "Telefon",

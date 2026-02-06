@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useCartStore, CartStore } from "../store/cartStore";
 import { useToastStore } from "../store/toastStore";
-import { Product, fetchProduct } from "../utils/api";
+import { Product, fetchProductWithCache } from "../utils/api";
 import { useI18n } from "../utils/useI18n";
 
 export default function ProductDetail() {
@@ -17,7 +17,7 @@ export default function ProductDetail() {
 
   useEffect(() => {
     if (!slug) return;
-    fetchProduct(slug).then(setProduct).catch(() => setProduct(null));
+    fetchProductWithCache(slug).then((r) => setProduct(r.product));
   }, [slug]);
 
   if (!product) {
@@ -62,7 +62,7 @@ export default function ProductDetail() {
             {product.title}
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            {product.in_stock ? t.product.inStock : t.product.outOfStock}
+            {(product.available_sizes ?? product.sizes ?? []).length > 0 ? t.product.inStock : t.product.outOfStock}
           </p>
         </div>
         <p className="text-2xl font-semibold text-brand-600">
@@ -73,7 +73,7 @@ export default function ProductDetail() {
             {t.product.selectSize}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {product.sizes.map((size) => (
+            {(product.available_sizes ?? product.sizes ?? []).map((size) => (
               <button
                 key={size}
                 onClick={() => setSelectedSize(size)}

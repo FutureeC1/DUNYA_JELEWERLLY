@@ -7,28 +7,29 @@ import { useI18n } from "../utils/useI18n";
 export default function Catalog() {
   const [products, setProducts] = useState<Product[]>(() => loadCache());
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("newest");
   const t = useI18n();
 
   useEffect(() => {
     let cancelled = false;
-    
+
     async function refresh() {
-      setError(null);
       const result = await fetchProductsWithRetry();
       if (!cancelled) {
         setProducts(result.data);
-        setError(result.error);
+        setError(result.error ?? null);
+        setStale(!!result.error && result.data.length > 0);
       }
     }
-    
+
     refresh();
-    const id = setInterval(refresh, 60_000); // обновлять раз в минуту
-    
-    return () => { 
-      cancelled = true; 
-      clearInterval(id); 
+    const id = setInterval(refresh, 60_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
     };
   }, []);
 
@@ -73,9 +74,12 @@ export default function Catalog() {
         </div>
       </div>
 
-      {error && (
+      {(error || stale) && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
           {error}
+          {stale && (
+            <p className="mt-1 text-xs opacity-90">{t.catalog.dataStale}</p>
+          )}
         </div>
       )}
 

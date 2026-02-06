@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import ApiStatusIndicator from "./ApiStatusIndicator";
 import { useCartStore } from "../store/cartStore";
 import { useUiStore } from "../store/uiStore";
 import { useI18n } from "../utils/useI18n";
@@ -30,6 +31,7 @@ export default function Header() {
           </NavLink>
         </nav>
         <div className="flex items-center gap-3">
+          <ApiStatusIndicator />
           <button
             onClick={toggleLocale}
             className="rounded-full border border-slate-200 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-600 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-700 dark:text-slate-200"

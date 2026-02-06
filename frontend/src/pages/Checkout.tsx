@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useCartStore } from "../store/cartStore";
 import { useToastStore } from "../store/toastStore";
 import { useUiStore } from "../store/uiStore";
-import { createOrder } from "../utils/api";
+import { submitOrder } from "../utils/api";
 import { useI18n } from "../utils/useI18n";
 
 export default function Checkout() {
@@ -18,7 +18,7 @@ export default function Checkout() {
     comment: "",
     telegramUsername: ""
   });
-  const [status, setStatus] = useState<"idle" | "sent" | "failed">("idle");
+  const [status, setStatus] = useState<"idle" | "sent" | "queued" | "failed">("idle");
 
   if (items.length === 0) {
     return (
@@ -33,28 +33,26 @@ export default function Checkout() {
       toast.push(t.toast.formError, "error");
       return;
     }
-    try {
-      const response = await createOrder({
-        customer: {
-          name: form.name,
-          phone: form.phone,
-          address: form.address,
-          comment: form.comment,
-          telegram_username: form.telegramUsername
-        },
-        items: items.map((item) => ({
-          product_slug: item.productSlug,
-          size: item.selectedSize,
-          qty: item.qty
-        })),
-        meta: {
-          locale,
-          theme
-        }
-      });
-      setStatus(response.status);
+    const result = await submitOrder({
+      customer_name: form.name,
+      phone: form.phone,
+      address: form.address,
+      comment: form.comment,
+      telegram_username: form.telegramUsername,
+      items: items.map((item) => ({
+        product_slug: item.productSlug,
+        size: item.selectedSize,
+        qty: item.qty
+      })),
+      meta: { locale, theme }
+    });
+    if (result.ok) {
+      setStatus("sent");
       clear();
-    } catch (error) {
+    } else if (result.queued) {
+      setStatus("queued");
+      clear();
+    } else {
       toast.push(t.toast.orderError, "error");
     }
   };
@@ -67,7 +65,7 @@ export default function Checkout() {
         className="rounded-3xl border border-slate-200/60 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900"
       >
         <p className="text-2xl font-semibold text-slate-900 dark:text-white">
-          {t.checkout.success}
+          {status === "queued" ? t.checkout.orderQueued : t.checkout.success}
         </p>
         {status === "failed" && (
           <p className="mt-4 text-sm text-amber-500">{t.checkout.telegramFailed}</p>

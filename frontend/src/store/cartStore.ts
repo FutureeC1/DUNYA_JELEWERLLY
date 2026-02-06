@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { create, StateCreator } from 'zustand';
+import { persist, createJSONStorage, PersistOptions } from 'zustand/middleware';
 
 export interface CartItem {
   productSlug: string;
@@ -22,17 +22,22 @@ export interface CartStore {
   getTotal: () => number;
 }
 
+type CartStorePersist = (
+  config: StateCreator<CartStore>,
+  options: PersistOptions<CartStore>
+) => StateCreator<CartStore>;
+
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      
+
       addToCart: (product: any, size: number) => {
         const currentItems = get().items;
         const existingItem = currentItems.find(
           (item: CartItem) => item.productSlug === product.slug && item.selectedSize === size
         );
-        
+
         if (existingItem) {
           set((state: CartStore) => ({
             items: state.items.map((item: CartItem) =>
@@ -55,7 +60,7 @@ export const useCartStore = create<CartStore>()(
           }));
         }
       },
-      
+
       removeFromCart: (productSlug: string, size: number) => {
         set((state: CartStore) => ({
           items: state.items.filter(
@@ -63,13 +68,13 @@ export const useCartStore = create<CartStore>()(
           )
         }));
       },
-      
+
       updateQuantity: (productSlug: string, size: number, qty: number) => {
         if (qty <= 0) {
           get().removeFromCart(productSlug, size);
           return;
         }
-        
+
         set((state: CartStore) => ({
           items: state.items.map((item: CartItem) =>
             item.productSlug === productSlug && item.selectedSize === size
@@ -78,17 +83,17 @@ export const useCartStore = create<CartStore>()(
           )
         }));
       },
-      
-      clear: () => set((state: CartStore) => ({ items: [] })),
-      
+
+      clear: () => set(() => ({ items: [] })),
+
       removeItem: (productSlug: string, size: number) => {
         get().removeFromCart(productSlug, size);
       },
-      
+
       updateQty: (productSlug: string, size: number, qty: number) => {
         get().updateQuantity(productSlug, size, qty);
       },
-      
+
       getTotal: () => {
         return get().items.reduce((total: number, item: CartItem) => total + (item.price * item.qty), 0);
       }

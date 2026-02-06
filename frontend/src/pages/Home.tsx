@@ -2,15 +2,25 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
-import { Product, fetchProducts } from "../utils/api";
+import { Product, fetchProductsWithRetry, loadCache } from "../utils/api";
 import { useI18n } from "../utils/useI18n";
 
 export default function Home() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(() => loadCache());
   const t = useI18n();
 
   useEffect(() => {
-    fetchProducts().then(setProducts).catch(() => setProducts([]));
+    let cancelled = false;
+    async function load() {
+      const result = await fetchProductsWithRetry();
+      if (!cancelled) setProducts(result.data);
+    }
+    load();
+    const id = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, []);
 
   return (

@@ -26,8 +26,13 @@ export default function App() {
 
   useEffect(() => {
     flushOrderQueue();
-    const id = setInterval(flushOrderQueue, 30_000);
-    return () => clearInterval(id);
+    const id = setInterval(flushOrderQueue, 45_000);
+    const onOnline = () => flushOrderQueue();
+    window.addEventListener("online", onOnline);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("online", onOnline);
+    };
   }, []);
 
   return (
