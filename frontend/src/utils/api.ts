@@ -151,19 +151,27 @@ export async function submitOrder(
   }
 }
 
-export async function flushOrderQueue(): Promise<void> {
-  let queue = loadQueue();
-  if (!queue.length) return;
+let flushInProgress = false;
 
-  const rest: QueuedOrder[] = [];
-  for (const item of queue) {
-    try {
-      await postOrder(item.order);
-    } catch (e) {
-      rest.push(item);
+export async function flushOrderQueue(): Promise<void> {
+  if (flushInProgress) return;
+  flushInProgress = true;
+  try {
+    const queue = loadQueue();
+    if (!queue.length) return;
+
+    const rest: QueuedOrder[] = [];
+    for (const item of queue) {
+      try {
+        await postOrder(item.order);
+      } catch (e) {
+        rest.push(item);
+      }
     }
+    saveQueue(rest);
+  } finally {
+    flushInProgress = false;
   }
-  saveQueue(rest);
 }
 
 async function getProducts(): Promise<Product[]> {
