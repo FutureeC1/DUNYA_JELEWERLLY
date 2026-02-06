@@ -43,9 +43,9 @@ export default function Checkout() {
           telegram_username: form.telegramUsername
         },
         items: items.map((item) => ({
-          productSlug: item.productSlug,
-          qty: item.qty,
-          selectedSize: item.selectedSize
+          product_slug: item.productSlug,
+          size: item.selectedSize,
+          qty: item.qty
         })),
         meta: {
           locale,

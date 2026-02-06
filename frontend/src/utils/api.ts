@@ -3,6 +3,7 @@ const QUEUE_KEY = "orders_queue_v1";
 const CACHE_KEY = "products_cache_v1";
 
 export interface Product {
+  id: number;
   slug: string;
   title: string;
   description: string;
@@ -11,6 +12,7 @@ export interface Product {
   category: string;
   available_sizes: number[];
   is_new: boolean;
+  created_at: string;
 }
 
 export interface OrderPayload {

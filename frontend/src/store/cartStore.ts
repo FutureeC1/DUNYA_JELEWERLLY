@@ -6,6 +6,7 @@ export interface CartItem {
   title: string;
   imageUrl: string;
   price: number;
+  priceUZS: number;
   selectedSize: number;
   qty: number;
 }
@@ -15,6 +16,8 @@ interface CartStore {
   addToCart: (product: any, size: number) => void;
   removeFromCart: (productSlug: string, size: number) => void;
   updateQuantity: (productSlug: string, size: number, qty: number) => void;
+  removeItem: (productSlug: string, size: number) => void;
+  updateQty: (productSlug: string, size: number, qty: number) => void;
   clear: () => void;
   getTotal: () => number;
 }
@@ -45,6 +48,7 @@ export const useCartStore = create<CartStore>()(
               title: product.title,
               imageUrl: product.image_urls?.[0] || '',
               price: product.price_uzs,
+              priceUZS: product.price_uzs,
               selectedSize: size,
               qty: 1
             }]
@@ -76,6 +80,14 @@ export const useCartStore = create<CartStore>()(
       },
       
       clear: () => set({ items: [] }),
+      
+      removeItem: (productSlug: string, size: number) => {
+        get().removeFromCart(productSlug, size);
+      },
+      
+      updateQty: (productSlug: string, size: number, qty: number) => {
+        get().updateQuantity(productSlug, size, qty);
+      },
       
       getTotal: () => {
         return get().items.reduce((total: number, item: CartItem) => total + (item.price * item.qty), 0);
