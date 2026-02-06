@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://dunya-jewellery-backend.railway.app"; // Updated for Vercel deployment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://dunya-jewellery-backend.onrender.com"; // Render backend URL
 const QUEUE_KEY = "orders_queue_v1";
 const CACHE_KEY = "products_cache_v1";
 
