@@ -1,17 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import ProductCard from "../components/ProductCard";
-import { Product, fetchProducts } from "../utils/api";
+import { Product, fetchProductsWithRetry, loadCache } from "../utils/api";
 import { useI18n } from "../utils/useI18n";
 
 export default function Catalog() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(() => loadCache());
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("newest");
   const t = useI18n();
 
   useEffect(() => {
-    fetchProducts().then(setProducts).catch(() => setProducts([]));
+    let cancelled = false;
+    
+    async function refresh() {
+      setError(null);
+      const result = await fetchProductsWithRetry();
+      if (!cancelled) {
+        setProducts(result.data);
+        setError(result.error);
+      }
+    }
+    
+    refresh();
+    const id = setInterval(refresh, 60_000); // обновлять раз в минуту
+    
+    return () => { 
+      cancelled = true; 
+      clearInterval(id); 
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -55,9 +73,15 @@ export default function Catalog() {
         </div>
       </div>
 
+      {error && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          {error}
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-slate-200 p-10 text-center text-slate-500 dark:border-slate-800">
-          {t.catalog.empty}
+          {products.length === 0 ? t.catalog.empty : "Товары не найдены по вашему запросу"}
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

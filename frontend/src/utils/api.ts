@@ -1,5 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://dunya-jewellery-backend.railway.app";
 const QUEUE_KEY = "orders_queue_v1";
+const CACHE_KEY = "products_cache_v1";
 
 export interface Product {
   slug: string;
@@ -39,6 +40,16 @@ function saveQueue(queue: QueuedOrder[]): void {
   localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 }
 
+export function loadCache(): Product[] {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY) || "[]"); }
+  catch { return []; }
+}
+
+function saveCache(data: Product[]): void {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); }
+  catch {}
+}
+
 async function postOrder(order: OrderPayload): Promise<any> {
   const res = await fetch(`${API_BASE_URL}/api/orders/`, {
     method: "POST",
@@ -75,6 +86,32 @@ export async function flushOrderQueue(): Promise<void> {
     }
   }
   saveQueue(rest);
+}
+
+async function getProducts(): Promise<Product[]> {
+  const res = await fetch(`${API_BASE_URL}/api/products/`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+export async function fetchProductsWithRetry(): Promise<{ data: Product[]; error: string | null }> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const data = await getProducts();
+      saveCache(data);
+      return { data, error: null };
+    } catch (e) {
+      if (attempt === 3) {
+        const cachedData = loadCache();
+        return { 
+          data: cachedData, 
+          error: cachedData.length ? "Временная ошибка загрузки. Показаны сохранённые товары." : "Не удалось загрузить товары." 
+        };
+      }
+      await new Promise(r => setTimeout(r, 800 * attempt));
+    }
+  }
+  return { data: loadCache(), error: "Не удалось загрузить товары." };
 }
 
 export async function fetchProduct(slug: string): Promise<Product> {
