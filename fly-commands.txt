@@ -1,0 +1,24 @@
+# Команды для Fly.io после установки
+
+## 1. Проверка установки:
+flyctl --version
+
+## 2. Аутентификация:
+flyctl auth login
+
+## 3. Создание приложения:
+flyctl launch --no-deploy --name dunya-jewellery-backend
+
+## 4. Деплой:
+flyctl deploy
+
+## 5. Environment Variables:
+flyctl secrets set SECRET_KEY="dunyajelewerlly.railway.internal"
+flyctl secrets set TELEGRAM_BOT_TOKEN="8347574406:AAFqAPMDrGogYC5jlEHiL_MXbnhLuzne3m8"
+flyctl secrets set TELEGRAM_CHAT_ID="8456049332"
+
+## 6. Проверка статуса:
+flyctl status
+
+## 7. Просмотр логов:
+flyctl logs

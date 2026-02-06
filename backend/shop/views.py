@@ -1,35 +1,26 @@
-from rest_framework import generics, status
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
+from django.http import JsonResponse
+from django.views import View
+from rest_framework import generics
+from .models import Product, Order
+from .serializers import ProductSerializer, OrderSerializer
 
-from .models import Product
-from .serializers import OrderCreateSerializer, ProductDetailSerializer, ProductListSerializer
-
-
-@api_view(['GET'])
-def health_check(request):
-    return Response({"status": "ok"})
-
+class HealthCheckView(View):
+    def get(self, request):
+        return JsonResponse({
+            "status": "healthy",
+            "service": "dunya-jewellery-backend",
+            "version": "1.0.0"
+        }, status=200)
 
 class ProductListView(generics.ListAPIView):
-    queryset = Product.objects.filter(in_stock=True)
-    serializer_class = ProductListSerializer
-
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
 
 class ProductDetailView(generics.RetrieveAPIView):
-    queryset = Product.objects.filter(in_stock=True)
-    serializer_class = ProductDetailSerializer
-    lookup_field = "slug"
-
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    lookup_field = 'slug'
 
 class OrderCreateView(generics.CreateAPIView):
-    serializer_class = OrderCreateSerializer
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        order = serializer.save()
-        return Response(
-            {"id": str(order.id), "status": order.status},
-            status=status.HTTP_201_CREATED,
-        )
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer

@@ -1,0 +1,21 @@
+app = "dunya-jewellery-backend"
+
+[build]
+  builder = "heroku/buildpacks:20"
+
+[env]
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  protocol = "tcp"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8000
+
+[deploy]
+  release_command = "python manage.py migrate"
+
+[processes]
+  app = "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"

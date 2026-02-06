@@ -1,65 +1,89 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface CartItem {
   productSlug: string;
   title: string;
-  priceUZS: number;
-  qty: number;
-  selectedSize: number;
   imageUrl: string;
+  price: number;
+  selectedSize: number;
+  qty: number;
 }
 
-interface CartState {
+interface CartStore {
   items: CartItem[];
-  addItem: (item: CartItem) => void;
-  removeItem: (productSlug: string, selectedSize: number) => void;
-  updateQty: (productSlug: string, selectedSize: number, qty: number) => void;
+  addToCart: (product: any, size: number) => void;
+  removeFromCart: (productSlug: string, size: number) => void;
+  updateQuantity: (productSlug: string, size: number, qty: number) => void;
   clear: () => void;
+  getTotal: () => number;
 }
 
-export const useCartStore = create<CartState>()(
+export const useCartStore = create<CartStore>()(
   persist(
-    (set) => ({
+    (set: any, get: any) => ({
       items: [],
-      addItem: (item) =>
-        set((state) => {
-          const existing = state.items.find(
-            (entry) =>
-              entry.productSlug === item.productSlug &&
-              entry.selectedSize === item.selectedSize
-          );
-          if (existing) {
-            return {
-              items: state.items.map((entry) =>
-                entry.productSlug === item.productSlug &&
-                entry.selectedSize === item.selectedSize
-                  ? { ...entry, qty: entry.qty + item.qty }
-                  : entry
-              )
-            };
-          }
-          return { items: [...state.items, item] };
-        }),
-      removeItem: (productSlug, selectedSize) =>
-        set((state) => ({
+      
+      addToCart: (product: any, size: number) => {
+        const currentItems = get().items;
+        const existingItem = currentItems.find(
+          (item: CartItem) => item.productSlug === product.slug && item.selectedSize === size
+        );
+        
+        if (existingItem) {
+          set({
+            items: currentItems.map((item: CartItem) =>
+              item.productSlug === product.slug && item.selectedSize === size
+                ? { ...item, qty: item.qty + 1 }
+                : item
+            )
+          });
+        } else {
+          set({
+            items: [...currentItems, {
+              productSlug: product.slug,
+              title: product.title,
+              imageUrl: product.image_urls?.[0] || '',
+              price: product.price_uzs,
+              selectedSize: size,
+              qty: 1
+            }]
+          });
+        }
+      },
+      
+      removeFromCart: (productSlug: string, size: number) => {
+        set((state: any) => ({
           items: state.items.filter(
-            (entry) =>
-              entry.productSlug !== productSlug ||
-              entry.selectedSize !== selectedSize
+            (item: CartItem) => !(item.productSlug === productSlug && item.selectedSize === size)
           )
-        })),
-      updateQty: (productSlug, selectedSize, qty) =>
-        set((state) => ({
-          items: state.items.map((entry) =>
-            entry.productSlug === productSlug &&
-            entry.selectedSize === selectedSize
-              ? { ...entry, qty: Math.max(1, qty) }
-              : entry
+        }));
+      },
+      
+      updateQuantity: (productSlug: string, size: number, qty: number) => {
+        if (qty <= 0) {
+          get().removeFromCart(productSlug, size);
+          return;
+        }
+        
+        set((state: any) => ({
+          items: state.items.map((item: CartItem) =>
+            item.productSlug === productSlug && item.selectedSize === size
+              ? { ...item, qty }
+              : item
           )
-        })),
-      clear: () => set({ items: [] })
+        }));
+      },
+      
+      clear: () => set({ items: [] }),
+      
+      getTotal: () => {
+        return get().items.reduce((total: number, item: CartItem) => total + (item.price * item.qty), 0);
+      }
     }),
-    { name: "dunya-cart" }
+    {
+      name: 'cart-storage',
+      storage: createJSONStorage(() => localStorage),
+    }
   )
 );
