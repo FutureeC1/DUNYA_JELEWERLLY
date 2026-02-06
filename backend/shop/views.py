@@ -3,7 +3,7 @@ from django.views import View
 from django.db import connection
 from rest_framework import generics
 from .models import Product, Order
-from .serializers import ProductSerializer, OrderSerializer
+from .serializers import ProductListSerializer as ProductSerializer, OrderCreateSerializer as OrderSerializer
 
 class HealthCheckView(View):
     def get(self, request):
