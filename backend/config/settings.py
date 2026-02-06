@@ -44,9 +44,10 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     FRONTEND_URL,
     "https://dunya-jewellery-frontend.vercel.app",
-    "https://dunya-jewellery.vercel.app",
+    "https://dunya-jewellery.vercel.app", 
     "https://dunyajewellery.netlify.app",
     "https://*.railway.app",
+    "https://dunya-jewellery.vercel.app",
 ]
 
 # Allow all origins for development and specific domains for production
@@ -62,6 +63,16 @@ CORS_ALLOW_HEADERS = [
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
+]
+
+# Allow all methods including POST, OPTIONS
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
 ]
 
 # Railway production settings
