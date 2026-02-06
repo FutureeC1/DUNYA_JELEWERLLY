@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  @apply bg-brand-950 text-white;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #003d99 #020410;
+}
