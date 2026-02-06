@@ -101,8 +101,10 @@ DATABASES = {
     )
 }
 
-# Debug prints to verify database configuration
-print("DATABASE_URL:", os.getenv("DATABASE_URL"))
+# Enhanced debug logging for database verification
+import os
+print("DATABASE_URL exists:", bool(os.getenv("DATABASE_URL")))
+print("DATABASE_URL host:", (os.getenv("DATABASE_URL") or "")[:80])
 print("DB ENGINE:", DATABASES["default"]["ENGINE"])
 
 AUTH_PASSWORD_VALIDATORS = [
