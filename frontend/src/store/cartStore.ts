@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage, StateCreator } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface CartItem {
   productSlug: string;
@@ -11,7 +11,7 @@ export interface CartItem {
   qty: number;
 }
 
-interface CartStore {
+export interface CartStore {
   items: CartItem[];
   addToCart: (product: any, size: number) => void;
   removeFromCart: (productSlug: string, size: number) => void;
@@ -22,7 +22,9 @@ interface CartStore {
   getTotal: () => number;
 }
 
-const storeCreator: StateCreator<CartStore> = (set, get) => ({
+export const useCartStore = create<CartStore>()(
+  persist(
+    (set, get) => ({
       items: [],
       
       addToCart: (product: any, size: number) => {
@@ -32,16 +34,16 @@ const storeCreator: StateCreator<CartStore> = (set, get) => ({
         );
         
         if (existingItem) {
-          set({
-            items: currentItems.map((item: CartItem) =>
+          set((state: CartStore) => ({
+            items: state.items.map((item: CartItem) =>
               item.productSlug === product.slug && item.selectedSize === size
                 ? { ...item, qty: item.qty + 1 }
                 : item
             )
-          });
+          }));
         } else {
-          set({
-            items: [...currentItems, {
+          set((state: CartStore) => ({
+            items: [...state.items, {
               productSlug: product.slug,
               title: product.title,
               imageUrl: product.image_urls?.[0] || '',
@@ -50,12 +52,12 @@ const storeCreator: StateCreator<CartStore> = (set, get) => ({
               selectedSize: size,
               qty: 1
             }]
-          });
+          }));
         }
       },
       
       removeFromCart: (productSlug: string, size: number) => {
-        set((state: any) => ({
+        set((state: CartStore) => ({
           items: state.items.filter(
             (item: CartItem) => !(item.productSlug === productSlug && item.selectedSize === size)
           )
@@ -68,7 +70,7 @@ const storeCreator: StateCreator<CartStore> = (set, get) => ({
           return;
         }
         
-        set((state: any) => ({
+        set((state: CartStore) => ({
           items: state.items.map((item: CartItem) =>
             item.productSlug === productSlug && item.selectedSize === size
               ? { ...item, qty }
@@ -77,7 +79,7 @@ const storeCreator: StateCreator<CartStore> = (set, get) => ({
         }));
       },
       
-      clear: () => set({ items: [] }),
+      clear: () => set((state: CartStore) => ({ items: [] })),
       
       removeItem: (productSlug: string, size: number) => {
         get().removeFromCart(productSlug, size);
@@ -90,11 +92,10 @@ const storeCreator: StateCreator<CartStore> = (set, get) => ({
       getTotal: () => {
         return get().items.reduce((total: number, item: CartItem) => total + (item.price * item.qty), 0);
       }
-});
-
-export const useCartStore = create<CartStore>()(
-  persist(storeCreator, {
-    name: 'cart-storage',
-    storage: createJSONStorage(() => localStorage),
-  })
+    }),
+    {
+      name: 'cart-storage',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
 );

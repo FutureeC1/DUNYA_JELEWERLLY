@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useCartStore } from "../store/cartStore";
+import { useCartStore, CartStore } from "../store/cartStore";
 import { useToastStore } from "../store/toastStore";
 import { Product, fetchProduct } from "../utils/api";
 import { useI18n } from "../utils/useI18n";
@@ -11,7 +11,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [qty, setQty] = useState(1);
-  const addItem = useCartStore((state) => state.addItem);
+  const addItem = useCartStore((state: CartStore) => state.addToCart);
   const toast = useToastStore();
   const t = useI18n();
 
