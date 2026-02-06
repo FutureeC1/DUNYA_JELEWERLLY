@@ -33,14 +33,9 @@ export default function ProductDetail() {
       toast.push(t.toast.selectSize, "error");
       return;
     }
-    addItem({
-      productSlug: product.slug,
-      title: product.title,
-      priceUZS: product.price_uzs,
-      qty,
-      selectedSize,
-      imageUrl: product.image_urls[0]
-    });
+    for (let i = 0; i < qty; i++) {
+      addItem(product, selectedSize);
+    }
     toast.push(t.toast.added, "success");
   };
 
