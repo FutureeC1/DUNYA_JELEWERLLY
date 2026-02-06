@@ -14,6 +14,7 @@ class HealthCheckView(View):
         }, status=200)
 
 def db_check(request):
+    """Temporary endpoint for database verification - remove after confirming PostgreSQL"""
     return JsonResponse({
         "vendor": connection.vendor,
         "name": connection.settings_dict.get("NAME"),
