@@ -97,11 +97,12 @@ DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
+        ssl_require=True,
     )
 }
 
 # Debug prints to verify database configuration
-print("DB URL:", os.getenv("DATABASE_URL"))
+print("DATABASE_URL:", os.getenv("DATABASE_URL"))
 print("DB ENGINE:", DATABASES["default"]["ENGINE"])
 
 AUTH_PASSWORD_VALIDATORS = [
