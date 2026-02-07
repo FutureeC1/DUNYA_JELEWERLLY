@@ -67,9 +67,9 @@ export default function Checkout() {
         <p className="text-2xl font-semibold text-slate-900 dark:text-white">
           {status === "queued" ? t.checkout.orderQueued : t.checkout.success}
         </p>
-        {status === "sent" && (
-          <p className="mt-4 text-slate-500 dark:text-slate-400">{t.checkout.successSubtitle}</p>
-        )}
+        <p className="mt-4 text-base text-slate-600 dark:text-slate-300">
+          {t.checkout.successSubtitle}
+        </p>
         {status === "failed" && (
           <p className="mt-4 text-sm text-amber-500">{t.checkout.telegramFailed}</p>
         )}
