@@ -55,6 +55,7 @@ const uz = {
     comment: "Izoh",
     placeOrder: "Buyurtma berish",
     success: "Dunya Jewellery’ni tanlaganingiz uchun rahmat",
+    successSubtitle: "Tez orada administrator siz bilan bog'lanadi. Kuting, rahmat❤️",
     telegramFailed: "Buyurtma saqlandi, ammo Telegram yetkazilmadi"
   },
   toast: {

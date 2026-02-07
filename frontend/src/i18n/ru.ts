@@ -55,6 +55,7 @@ const ru = {
     comment: "Комментарий",
     placeOrder: "Заказать",
     success: "Спасибо за заказ в Dunya Jewellery",
+    successSubtitle: "С вами скоро свяжется администратор. Спасибо за ожидание❤️",
     telegramFailed: "Заказ сохранён, но Telegram не доставлен"
   },
   toast: {

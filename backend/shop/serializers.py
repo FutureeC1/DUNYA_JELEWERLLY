@@ -52,6 +52,15 @@ class OrderCreateSerializer(serializers.Serializer):
     items = OrderItemInputSerializer(many=True)
     meta = OrderMetaSerializer()
 
+    def to_representation(self, instance):
+        if isinstance(instance, Order):
+            return {
+                "id": str(instance.id),
+                "status": instance.status,
+                "subtotal_uzs": instance.subtotal_uzs,
+            }
+        return super().to_representation(instance)
+
     def validate_items(self, value):
         if not value:
             raise serializers.ValidationError("Items list cannot be empty.")
