@@ -7,6 +7,8 @@ const API =
 const QUEUE_KEY = "orders_queue_v1";
 const CACHE_KEY = "products_cache_v1";
 const CACHE_TS_KEY = "products_cache_ts_v1";
+const BACKEND_5XX_COOLDOWN_KEY = "orders_backend_5xx_cooldown_v1";
+const BACKEND_5XX_COOLDOWN_MS = 5 * 60 * 1000;
 
 export interface Product {
   id: number;
@@ -121,7 +123,9 @@ function generateOrderId(): string {
   });
 }
 
-async function postOrder(order: OrderPayload): Promise<unknown> {
+type PostOrderResult = { ok: true; data: unknown } | { ok: false; status: number };
+
+async function postOrder(order: OrderPayload): Promise<PostOrderResult> {
   const url = `${API.replace(/\/$/, "")}/api/orders/`;
   const res = await fetch(url, {
     method: "POST",
@@ -129,46 +133,58 @@ async function postOrder(order: OrderPayload): Promise<unknown> {
     body: JSON.stringify(toBackendFormat(order)),
   });
   if (res.status === 409) {
-    return { status: "already_exists" };
+    return { ok: true, data: { status: "already_exists" } };
   }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  if (res.status >= 500) {
+    try {
+      localStorage.setItem(BACKEND_5XX_COOLDOWN_KEY, String(Date.now()));
+    } catch {}
+    return { ok: false, status: res.status };
+  }
+  if (!res.ok) return { ok: false, status: res.status };
+  return { ok: true, data: await res.json() };
 }
 
 export async function submitOrder(
   order: OrderPayload
 ): Promise<{ ok: boolean; queued: boolean }> {
+  const result = await postOrder(order);
+  if (result.ok) return { ok: true, queued: false };
+  if (result.status >= 500) return { ok: false, queued: false };
   const queue = loadQueue();
-
-  try {
-    await postOrder(order);
-    return { ok: true, queued: false };
-  } catch (e) {
-    const orderId = generateOrderId();
-    queue.push({ orderId, order, createdAt: Date.now() });
-    saveQueue(queue);
-    return { ok: false, queued: true };
-  }
+  const orderId = generateOrderId();
+  queue.push({ orderId, order, createdAt: Date.now() });
+  saveQueue(queue);
+  return { ok: false, queued: true };
 }
 
 let flushInProgress = false;
 
 export async function flushOrderQueue(): Promise<void> {
   if (flushInProgress) return;
+  const cooldown = localStorage.getItem(BACKEND_5XX_COOLDOWN_KEY);
+  if (cooldown) {
+    const elapsed = Date.now() - parseInt(cooldown, 10);
+    if (elapsed < BACKEND_5XX_COOLDOWN_MS) return;
+    try {
+      localStorage.removeItem(BACKEND_5XX_COOLDOWN_KEY);
+    } catch {}
+  }
   flushInProgress = true;
   try {
-    const queue = loadQueue();
+    let queue = loadQueue();
     if (!queue.length) return;
 
-    const rest: QueuedOrder[] = [];
     for (const item of queue) {
-      try {
-        await postOrder(item.order);
-      } catch (e) {
-        rest.push(item);
+      const rest = queue.filter((q) => q.orderId !== item.orderId);
+      saveQueue(rest);
+      queue = rest;
+      const result = await postOrder(item.order);
+      if (!result.ok && result.status < 500) {
+        queue = [...queue, item];
+        saveQueue(queue);
       }
     }
-    saveQueue(rest);
   } finally {
     flushInProgress = false;
   }
