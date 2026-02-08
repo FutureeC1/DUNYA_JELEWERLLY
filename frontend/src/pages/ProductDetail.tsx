@@ -9,7 +9,7 @@ import { useI18n } from "../utils/useI18n";
 export default function ProductDetail() {
   const { slug } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
-  const [selectedSize, setSelectedSize] = useState<number | string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [qty, setQty] = useState(1);
   const addItem = useCartStore((state: CartStore) => state.addToCart);
   const toast = useToastStore();
@@ -69,17 +69,36 @@ export default function ProductDetail() {
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {(product.available_sizes ?? product.sizes ?? []).map((rawSize: any) => {
-              // Normalization: if size is object { size: 40, ... } -> 40, else -> 40
-              const size = typeof rawSize === 'object' && rawSize !== null && 'size' in rawSize
-                ? rawSize.size
-                : rawSize;
+              // Strict parsing logic
+              let size: number | null = null;
+
+              if (typeof rawSize === 'number') {
+                size = rawSize;
+              } else if (typeof rawSize === 'string') {
+                // Try replacing comma with dot (18,5 -> 18.5)
+                const normalized = rawSize.replace(',', '.');
+                const parsed = parseFloat(normalized);
+                if (!isNaN(parsed)) size = parsed;
+              } else if (typeof rawSize === 'object' && rawSize !== null) {
+                // Try to find a 'size' property
+                if ('size' in rawSize) {
+                  const s = rawSize.size;
+                  if (typeof s === 'number') size = s;
+                  else if (typeof s === 'string') {
+                    const parsed = parseFloat(s.replace(',', '.'));
+                    if (!isNaN(parsed)) size = parsed;
+                  }
+                }
+              }
+
+              if (size === null) return null; // Skip invalid sizes
 
               return (
                 <button
-                  key={String(size)}
+                  key={size}
                   onClick={() => {
-                    console.log("Selected size:", size);
-                    setSelectedSize(size);
+                    console.log("Selected size (number):", size);
+                    setSelectedSize(size!);
                   }}
                   className={`rounded-full border px-4 py-1 text-sm transition ${selectedSize === size
 
@@ -87,7 +106,7 @@ export default function ProductDetail() {
                     : "border-slate-200 text-slate-600 hover:border-brand-400 dark:border-slate-800 dark:text-slate-200"
                     }`}
                 >
-                  {String(size)}
+                  {size}
                 </button>
               );
             })}

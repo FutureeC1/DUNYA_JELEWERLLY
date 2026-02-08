@@ -33,15 +33,18 @@ export default function Checkout() {
       toast.push(t.toast.formError, "error");
       return;
     }
-    const payloadItems = items.map((item) => {
-      // Double check sanitization just in case
-      let size = item.selectedSize;
-      if (typeof size === 'object' && size !== null && 'size' in size) {
-        size = (size as any).size;
+    // Validate payload items
+    for (const item of items) {
+      if (typeof item.selectedSize !== 'number' || isNaN(item.selectedSize)) {
+        toast.push(`Ошибка в товаре ${item.title}: некорректный размер`, "error");
+        return;
       }
+    }
+
+    const payloadItems = items.map((item) => {
       return {
         product_slug: item.productSlug,
-        size: size,
+        size: item.selectedSize,
         qty: item.qty
       };
     });
@@ -149,7 +152,7 @@ export default function Checkout() {
                   {item.title}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {String(item.selectedSize)} • {item.qty}x
+                  {item.selectedSize} • {item.qty}x
                 </p>
               </div>
               <p className="text-sm font-semibold text-brand-600">

@@ -32,7 +32,7 @@ export interface OrderPayload {
   telegram_username?: string;
   items: Array<{
     product_slug: string;
-    size: number | string;
+    size: number;
     qty: number;
   }>;
   meta?: {
