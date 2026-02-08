@@ -6,19 +6,23 @@ import { useUiStore } from "../store/uiStore";
 import { submitOrder } from "../utils/api";
 import { useI18n } from "../utils/useI18n";
 
+type Status = "idle" | "sent" | "queued" | "failed";
+
 export default function Checkout() {
   const { items, clear } = useCartStore();
   const { locale, theme } = useUiStore();
   const toast = useToastStore();
   const t = useI18n();
+
   const [form, setForm] = useState({
     name: "",
     phone: "",
     address: "",
     comment: "",
-    telegramUsername: ""
+    telegramUsername: "",
   });
-  const [status, setStatus] = useState<"idle" | "sent" | "queued" | "failed">("idle");
+
+  const [status, setStatus] = useState<Status>("idle");
 
   if (items.length === 0) {
     return (
@@ -33,44 +37,67 @@ export default function Checkout() {
       toast.push(t.toast.formError, "error");
       return;
     }
-    // Validate payload items
+
+    // Backend expects: items[].selectedSize as INTEGER (because DB uses PositiveIntegerField)
+    // Make sure every item has valid integer size.
     for (const item of items) {
-      if (typeof item.selectedSize !== 'number' || isNaN(item.selectedSize)) {
+      const sizeNumber = Number(String(item.selectedSize).replace(",", "."));
+      if (!Number.isFinite(sizeNumber)) {
+        toast.push(`Ошибка в товаре ${item.title}: некорректный размер`, "error");
+        return;
+      }
+      const sizeInt = Math.round(sizeNumber);
+      if (!Number.isFinite(sizeInt) || sizeInt <= 0) {
         toast.push(`Ошибка в товаре ${item.title}: некорректный размер`, "error");
         return;
       }
     }
 
-    const payloadItems = items.map((item) => {
-      return {
-        product_slug: item.productSlug,
-        size: item.selectedSize,
-        qty: item.qty
-      };
-    });
-
     const payload = {
-      customer_name: form.name,
-      phone: form.phone,
-      address: form.address,
-      comment: form.comment,
-      telegram_username: form.telegramUsername,
-      items: payloadItems,
-      meta: { locale, theme }
+      customer: {
+        name: form.name,
+        phone: form.phone,
+        address: form.address,
+        comment: form.comment,
+        telegram_username: form.telegramUsername, // IMPORTANT: underscore like backend
+      },
+      items: items.map((item) => {
+        const sizeNumber = Number(String(item.selectedSize).replace(",", "."));
+        const sizeInt = Math.round(sizeNumber);
+
+        return {
+          productSlug: item.productSlug, // IMPORTANT: camelCase like backend serializer
+          qty: Number(item.qty),
+          selectedSize: sizeInt,
+        };
+      }),
+      meta: { locale, theme },
     };
 
-    console.log("Submitting order payload:", payload);
+    console.log("PAYLOAD_JSON", JSON.stringify(payload, null, 2));
 
-    const result = await submitOrder(payload);
-    if (result.ok) {
-      setStatus("sent");
-      clear();
-    } else if (result.queued) {
-      setStatus("queued");
-      clear();
-    } else {
+    try {
+      const result = await submitOrder(payload);
+
+      if (result.ok) {
+        setStatus("sent");
+        clear();
+        return;
+      }
+
+      if (result.queued) {
+        setStatus("queued");
+        clear();
+        return;
+      }
+
       console.error("Order submission failed:", result);
+      setStatus("failed");
       toast.push(result.errorMessage || t.toast.orderError, "error");
+    } catch (err) {
+      console.error(err);
+      setStatus("failed");
+      toast.push(t.toast.orderError, "error");
     }
   };
 
@@ -100,6 +127,7 @@ export default function Checkout() {
         <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">
           {t.checkout.title}
         </h1>
+
         <div className="grid gap-4">
           <input
             value={form.name}
@@ -121,7 +149,9 @@ export default function Checkout() {
           />
           <input
             value={form.telegramUsername}
-            onChange={(event) => setForm({ ...form, telegramUsername: event.target.value })}
+            onChange={(event) =>
+              setForm({ ...form, telegramUsername: event.target.value })
+            }
             placeholder="Telegram username (без @)"
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
           />
@@ -132,6 +162,7 @@ export default function Checkout() {
             className="min-h-[120px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
           />
         </div>
+
         <button
           onClick={handleSubmit}
           className="rounded-full bg-brand-600 px-6 py-3 text-xs uppercase tracking-[0.3em] text-white shadow-soft"
@@ -139,14 +170,23 @@ export default function Checkout() {
           {t.checkout.placeOrder}
         </button>
       </div>
+
       <div className="space-y-4 rounded-3xl border border-slate-200/60 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
           {t.cart.title}
         </h2>
+
         <div className="space-y-4">
           {items.map((item) => (
-            <div key={`${item.productSlug}-${item.selectedSize}`} className="flex items-center gap-3">
-              <img src={item.imageUrl} alt={item.title} className="h-12 w-12 rounded-xl object-cover" />
+            <div
+              key={`${item.productSlug}-${item.selectedSize}`}
+              className="flex items-center gap-3"
+            >
+              <img
+                src={item.imageUrl}
+                alt={item.title}
+                className="h-12 w-12 rounded-xl object-cover"
+              />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-slate-900 dark:text-white">
                   {item.title}
