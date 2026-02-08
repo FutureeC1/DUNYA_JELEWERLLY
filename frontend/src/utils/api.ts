@@ -123,7 +123,9 @@ function generateOrderId(): string {
   });
 }
 
-type PostOrderResult = { ok: true; data: unknown } | { ok: false; status: number };
+type PostOrderResult =
+  | { ok: true; data: unknown }
+  | { ok: false; status: number; errorMessage?: string };
 
 async function postOrder(order: OrderPayload): Promise<PostOrderResult> {
   const url = `${API.replace(/\/$/, "")}/api/orders/`;
@@ -141,21 +143,30 @@ async function postOrder(order: OrderPayload): Promise<PostOrderResult> {
     } catch {}
     return { ok: false, status: res.status };
   }
-  if (!res.ok) return { ok: false, status: res.status };
+  if (!res.ok) {
+    let errorMessage = "";
+    try {
+      const body = await res.json();
+      if (body?.items) errorMessage = typeof body.items === "string" ? body.items : body.items[0];
+      else if (body?.detail) errorMessage = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    } catch {}
+    return { ok: false, status: res.status, errorMessage };
+  }
   return { ok: true, data: await res.json() };
 }
 
 export async function submitOrder(
   order: OrderPayload
-): Promise<{ ok: boolean; queued: boolean }> {
+): Promise<{ ok: boolean; queued: boolean; errorMessage?: string }> {
   const result = await postOrder(order);
   if (result.ok) return { ok: true, queued: false };
   if (result.status >= 500) return { ok: false, queued: false };
+  if (result.status >= 400) return { ok: false, queued: false, errorMessage: result.errorMessage };
   const queue = loadQueue();
   const orderId = generateOrderId();
   queue.push({ orderId, order, createdAt: Date.now() });
   saveQueue(queue);
-  return { ok: false, queued: true };
+  return { ok: false, queued: true, errorMessage: result.errorMessage };
 }
 
 let flushInProgress = false;

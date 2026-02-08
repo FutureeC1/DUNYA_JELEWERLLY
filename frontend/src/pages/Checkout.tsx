@@ -53,7 +53,7 @@ export default function Checkout() {
       setStatus("queued");
       clear();
     } else {
-      toast.push(t.toast.orderError, "error");
+      toast.push(result.errorMessage || t.toast.orderError, "error");
     }
   };
 
