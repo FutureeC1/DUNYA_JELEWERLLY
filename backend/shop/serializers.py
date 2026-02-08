@@ -1,4 +1,5 @@
 from typing import Any
+from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from rest_framework import serializers
@@ -38,13 +39,19 @@ class OrderCustomerSerializer(serializers.Serializer):
 
 class OrderItemInputSerializer(serializers.Serializer):
     # Frontend must send EXACT keys:
-    # { productSlug: "slug", qty: 1, selectedSize: 16 }
+    # { productSlug: "slug", qty: 1, selectedSize: 19.5 }
     productSlug = serializers.SlugField()
     qty = serializers.IntegerField(min_value=1)
 
-    # IMPORTANT: model OrderItem.selected_size is PositiveIntegerField
-    # so only integer ring sizes are supported in current DB schema.
-    selectedSize = serializers.IntegerField(min_value=1)
+    # ✅ accepts 15.5 / "15.5"
+    selectedSize = serializers.DecimalField(max_digits=4, decimal_places=1)
+
+    def validate_selectedSize(self, value: Decimal) -> Decimal:
+        # normalize to 1 decimal place
+        try:
+            return Decimal(str(value)).quantize(Decimal("0.1"))
+        except (InvalidOperation, ValueError, TypeError):
+            raise serializers.ValidationError("Введите правильное число.")
 
 
 class OrderMetaSerializer(serializers.Serializer):
@@ -72,17 +79,19 @@ class OrderCreateSerializer(serializers.Serializer):
         return value
 
     @staticmethod
-    def _normalize_sizes_to_int(sizes: list[Any]) -> list[int]:
-        """
-        Product.sizes is JSONField and might contain ints, floats, or strings.
-        We normalize everything to int for comparison with selectedSize.
-        """
-        out: list[int] = []
-        for s in sizes:
+    def _to_decimal_1dp(v: Any) -> Decimal:
+        # Converts numbers/strings to Decimal with 1 decimal place
+        # Handles: 19, 19.0, 19.5, "19.5", "19,5"
+        s = str(v).strip().replace(",", ".")
+        return Decimal(s).quantize(Decimal("0.1"))
+
+    @classmethod
+    def _normalize_sizes_to_decimal(cls, sizes: list[Any]) -> list[Decimal]:
+        out: list[Decimal] = []
+        for s in (sizes or []):
             try:
-                # handles "16", 16, 16.0, "16.0"
-                out.append(int(float(str(s))))
-            except (ValueError, TypeError):
+                out.append(cls._to_decimal_1dp(s))
+            except (InvalidOperation, ValueError, TypeError):
                 continue
         return out
 
@@ -108,7 +117,9 @@ class OrderCreateSerializer(serializers.Serializer):
             for item in items_data:
                 product_slug = item["productSlug"]
                 qty = int(item["qty"])
-                selected_size = int(item["selectedSize"])
+
+                # ✅ already validated and quantized by OrderItemInputSerializer
+                requested_size: Decimal = item["selectedSize"]
 
                 product = Product.objects.filter(slug=product_slug, in_stock=True).first()
                 if not product:
@@ -117,11 +128,11 @@ class OrderCreateSerializer(serializers.Serializer):
                     )
 
                 sizes_raw = product.sizes or []
-                sizes_int = self._normalize_sizes_to_int(sizes_raw)
+                sizes_dec = self._normalize_sizes_to_decimal(sizes_raw)
 
-                if selected_size not in sizes_int:
+                if requested_size not in sizes_dec:
                     raise serializers.ValidationError(
-                        {"items": f"Selected size {selected_size} is not available."}
+                        {"items": f"Selected size {requested_size} is not available."}
                     )
 
                 image_urls = product.image_urls or []
@@ -139,7 +150,7 @@ class OrderCreateSerializer(serializers.Serializer):
                     price_snapshot_uzs=product.price_uzs,
                     image_url_snapshot=image_urls[0],
                     qty=qty,
-                    selected_size=selected_size,
+                    selected_size=requested_size,  # ✅ Decimal (model must be DecimalField)
                 )
 
             order.subtotal_uzs = subtotal

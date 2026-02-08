@@ -1,5 +1,7 @@
 import uuid
+from decimal import Decimal
 
+from django.core.validators import MinValueValidator
 from django.db import models
 
 
@@ -10,7 +12,11 @@ class Product(models.Model):
     description = models.TextField()
     price_uzs = models.PositiveIntegerField()
     currency = models.CharField(max_length=3, default="UZS")
+
+    # храните размеры как список в JSON:
+    # [15, 15.5, 16, ...] или ["15", "15.5", ...] — serializer нормализует
     sizes = models.JSONField()
+
     in_stock = models.BooleanField(default=True)
     image_urls = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -35,19 +41,11 @@ class Order(models.Model):
 
     LOCALE_RU = "ru"
     LOCALE_UZ = "uz"
-
-    LOCALE_CHOICES = [
-        (LOCALE_RU, "RU"),
-        (LOCALE_UZ, "UZ"),
-    ]
+    LOCALE_CHOICES = [(LOCALE_RU, "RU"), (LOCALE_UZ, "UZ")]
 
     THEME_LIGHT = "light"
     THEME_DARK = "dark"
-
-    THEME_CHOICES = [
-        (THEME_LIGHT, "Light"),
-        (THEME_DARK, "Dark"),
-    ]
+    THEME_CHOICES = [(THEME_LIGHT, "Light"), (THEME_DARK, "Dark")]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     customer_name = models.CharField(max_length=255)
@@ -77,7 +75,13 @@ class OrderItem(models.Model):
     price_snapshot_uzs = models.PositiveIntegerField()
     image_url_snapshot = models.URLField()
     qty = models.PositiveIntegerField()
-    selected_size = models.PositiveIntegerField()
+
+    # ✅ ВАЖНО: поддержка 15.5 / 16.5 / 19.5
+    selected_size = models.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        validators=[MinValueValidator(Decimal("1.0"))],
+    )
 
     def __str__(self) -> str:
         return f"{self.title_snapshot} x{self.qty}"
