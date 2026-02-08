@@ -1,167 +1,150 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { useCartStore } from "../store/cartStore";
-import { useToastStore } from "../store/toastStore";
-import { useUiStore } from "../store/uiStore";
-import { submitOrder } from "../utils/api";
-import { useI18n } from "../utils/useI18n";
+from typing import Any
 
-export default function Checkout() {
-  const { items, clear } = useCartStore();
-  const { locale, theme } = useUiStore();
-  const toast = useToastStore();
-  const t = useI18n();
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    address: "",
-    comment: "",
-    telegramUsername: ""
-  });
-  const [status, setStatus] = useState<"idle" | "sent" | "queued" | "failed">("idle");
+from django.db import transaction
+from rest_framework import serializers
 
-  if (items.length === 0) {
-    return (
-      <div className="rounded-3xl border border-dashed border-slate-200 p-10 text-center text-slate-500 dark:border-slate-800">
-        {t.cart.empty}
-      </div>
-    );
-  }
+from .models import Order, OrderItem, Product
+from .services.telegram_service import send_order_to_telegram
 
-  const handleSubmit = async () => {
-    if (!form.name || !form.phone || !form.address) {
-      toast.push(t.toast.formError, "error");
-      return;
-    }
-    // Validate payload items
-    for (const item of items) {
-      if (typeof item.selectedSize !== 'number' || isNaN(item.selectedSize)) {
-        toast.push(`Ошибка в товаре ${item.title}: некорректный размер`, "error");
-        return;
-      }
-    }
 
-    const payloadItems = items.map((item) => {
-      return {
-        product_slug: item.productSlug,
-        size: item.selectedSize,
-        qty: item.qty
-      };
-    });
+class ProductListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = (
+            "id",
+            "title",
+            "slug",
+            "description",
+            "price_uzs",
+            "currency",
+            "sizes",
+            "in_stock",
+            "image_urls",
+            "created_at",
+        )
 
-    const payload = {
-      customer_name: form.name,
-      phone: form.phone,
-      address: form.address,
-      comment: form.comment,
-      telegram_username: form.telegramUsername,
-      items: payloadItems,
-      meta: { locale, theme }
-    };
 
-    console.log("Submitting order payload:", payload);
+class ProductDetailSerializer(ProductListSerializer):
+    pass
 
-    const result = await submitOrder(payload);
-    if (result.ok) {
-      setStatus("sent");
-      clear();
-    } else if (result.queued) {
-      setStatus("queued");
-      clear();
-    } else {
-      console.error("Order submission failed:", result);
-      toast.push(result.errorMessage || t.toast.orderError, "error");
-    }
-  };
 
-  if (status !== "idle") {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl border border-slate-200/60 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900"
-      >
-        <p className="text-2xl font-semibold text-slate-900 dark:text-white">
-          {status === "queued" ? t.checkout.orderQueued : t.checkout.success}
-        </p>
-        <p className="mt-4 text-base text-slate-600 dark:text-slate-300">
-          {t.checkout.successSubtitle}
-        </p>
-        {status === "failed" && (
-          <p className="mt-4 text-sm text-amber-500">{t.checkout.telegramFailed}</p>
-        )}
-      </motion.div>
-    );
-  }
+class OrderCustomerSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=255)
+    phone = serializers.CharField(max_length=50)
+    address = serializers.CharField(max_length=255)
+    comment = serializers.CharField(allow_blank=True, required=False)
+    telegram_username = serializers.CharField(allow_blank=True, required=False)
 
-  return (
-    <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-      <div className="space-y-6">
-        <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">
-          {t.checkout.title}
-        </h1>
-        <div className="grid gap-4">
-          <input
-            value={form.name}
-            onChange={(event) => setForm({ ...form, name: event.target.value })}
-            placeholder={t.checkout.name}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
-          />
-          <input
-            value={form.phone}
-            onChange={(event) => setForm({ ...form, phone: event.target.value })}
-            placeholder={t.checkout.phone}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
-          />
-          <input
-            value={form.address}
-            onChange={(event) => setForm({ ...form, address: event.target.value })}
-            placeholder={t.checkout.address}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
-          />
-          <input
-            value={form.telegramUsername}
-            onChange={(event) => setForm({ ...form, telegramUsername: event.target.value })}
-            placeholder="Telegram username (без @)"
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
-          />
-          <textarea
-            value={form.comment}
-            onChange={(event) => setForm({ ...form, comment: event.target.value })}
-            placeholder={t.checkout.comment}
-            className="min-h-[120px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
-          />
-        </div>
-        <button
-          onClick={handleSubmit}
-          className="rounded-full bg-brand-600 px-6 py-3 text-xs uppercase tracking-[0.3em] text-white shadow-soft"
-        >
-          {t.checkout.placeOrder}
-        </button>
-      </div>
-      <div className="space-y-4 rounded-3xl border border-slate-200/60 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-          {t.cart.title}
-        </h2>
-        <div className="space-y-4">
-          {items.map((item) => (
-            <div key={`${item.productSlug}-${item.selectedSize}`} className="flex items-center gap-3">
-              <img src={item.imageUrl} alt={item.title} className="h-12 w-12 rounded-xl object-cover" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                  {item.title}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {item.selectedSize} • {item.qty}x
-                </p>
-              </div>
-              <p className="text-sm font-semibold text-brand-600">
-                {(item.priceUZS * item.qty).toLocaleString("ru-RU")} UZS
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+
+class OrderItemInputSerializer(serializers.Serializer):
+    # Frontend must send EXACT keys:
+    # { productSlug: "slug", qty: 1, selectedSize: 16 }
+    productSlug = serializers.SlugField()
+    qty = serializers.IntegerField(min_value=1)
+
+    # IMPORTANT: model OrderItem.selected_size is PositiveIntegerField
+    # so only integer ring sizes are supported in current DB schema.
+    selectedSize = serializers.IntegerField(min_value=1)
+
+
+class OrderMetaSerializer(serializers.Serializer):
+    locale = serializers.ChoiceField(choices=["ru", "uz"])
+    theme = serializers.ChoiceField(choices=["light", "dark"])
+
+
+class OrderCreateSerializer(serializers.Serializer):
+    customer = OrderCustomerSerializer()
+    items = OrderItemInputSerializer(many=True)
+    meta = OrderMetaSerializer()
+
+    def to_representation(self, instance):
+        if isinstance(instance, Order):
+            return {
+                "id": str(instance.id),
+                "status": instance.status,
+                "subtotal_uzs": instance.subtotal_uzs,
+            }
+        return super().to_representation(instance)
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError("Items list cannot be empty.")
+        return value
+
+    @staticmethod
+    def _normalize_sizes_to_int(sizes: list[Any]) -> list[int]:
+        """
+        Product.sizes is JSONField and might contain ints, floats, or strings.
+        We normalize everything to int for comparison with selectedSize.
+        """
+        out: list[int] = []
+        for s in sizes:
+            try:
+                # handles "16", 16, 16.0, "16.0"
+                out.append(int(float(str(s))))
+            except (ValueError, TypeError):
+                continue
+        return out
+
+    def create(self, validated_data: dict[str, Any]) -> Order:
+        customer = validated_data["customer"]
+        items_data = validated_data["items"]
+        meta = validated_data["meta"]
+
+        with transaction.atomic():
+            order = Order.objects.create(
+                customer_name=customer["name"],
+                customer_phone=customer["phone"],
+                customer_address=customer["address"],
+                customer_comment=customer.get("comment", ""),
+                customer_telegram_username=customer.get("telegram_username", ""),
+                subtotal_uzs=0,
+                locale=meta["locale"],
+                theme=meta["theme"],
+                status=Order.STATUS_NEW,
+            )
+
+            subtotal = 0
+            for item in items_data:
+                product_slug = item["productSlug"]
+                qty = int(item["qty"])
+                selected_size = int(item["selectedSize"])
+
+                product = Product.objects.filter(slug=product_slug, in_stock=True).first()
+                if not product:
+                    raise serializers.ValidationError(
+                        {"items": f"Product '{product_slug}' not found or out of stock."}
+                    )
+
+                sizes_raw = product.sizes or []
+                sizes_int = self._normalize_sizes_to_int(sizes_raw)
+
+                if selected_size not in sizes_int:
+                    raise serializers.ValidationError(
+                        {"items": f"Selected size {selected_size} is not available."}
+                    )
+
+                image_urls = product.image_urls or []
+                if not image_urls:
+                    raise serializers.ValidationError({"items": "Product image is required."})
+
+                line_total = product.price_uzs * qty
+                subtotal += line_total
+
+                OrderItem.objects.create(
+                    order=order,
+                    product=product,
+                    title_snapshot=product.title,
+                    description_snapshot=product.description,
+                    price_snapshot_uzs=product.price_uzs,
+                    image_url_snapshot=image_urls[0],
+                    qty=qty,
+                    selected_size=selected_size,
+                )
+
+            order.subtotal_uzs = subtotal
+            order.save(update_fields=["subtotal_uzs"])
+
+        # After successful transaction: send to Telegram
+        send_order_to_telegram(order)
+        return order
