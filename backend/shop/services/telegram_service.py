@@ -65,10 +65,11 @@ def _build_message(order: Order) -> str:
 
 
 def send_order_to_telegram(order: Order) -> None:
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "8375190269:AAECV6WhxU3tnVnRJhynHjAP75gV9mRch-k").strip()
-    chat_id = os.getenv("TELEGRAM_CHAT_ID", "8375190269").strip()
+    token = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
+    chat_id = (os.getenv("TELEGRAM_CHAT_ID") or "").strip()
 
     if not token or not chat_id:
+        print("TELEGRAM_CONFIG_MISSING: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is empty")
         order.status = Order.STATUS_FAILED
         order.save(update_fields=["status"])
         return
@@ -77,31 +78,39 @@ def send_order_to_telegram(order: Order) -> None:
     message = _build_message(order)
 
     try:
-        response = requests.post(
+        resp = requests.post(
             f"{base_url}/sendMessage",
-            data={"chat_id": chat_id, "text": message},
-            timeout=10,
+            data={"chat_id": chat_id, "text": message, "parse_mode": "HTML"},
+            timeout=15,
         )
-        response.raise_for_status()
+
+        if not resp.ok:
+            print("TELEGRAM_SENDMESSAGE_FAILED:", resp.status_code, resp.text)
+            order.status = Order.STATUS_FAILED
+            order.save(update_fields=["status"])
+            return
 
         for item in order.items.all():
-            photo_response = requests.post(
+            photo_resp = requests.post(
                 f"{base_url}/sendPhoto",
                 data={"chat_id": chat_id, "photo": item.image_url_snapshot},
-                timeout=10,
+                timeout=15,
             )
-            if not photo_response.ok:
-                requests.post(
+            if not photo_resp.ok:
+                print("TELEGRAM_SENDPHOTO_FAILED:", photo_resp.status_code, photo_resp.text)
+                # fallback: send link
+                fallback = requests.post(
                     f"{base_url}/sendMessage",
-                    data={
-                        "chat_id": chat_id,
-                        "text": f"Фото: {item.image_url_snapshot}",
-                    },
-                    timeout=10,
+                    data={"chat_id": chat_id, "text": f"Фото: {item.image_url_snapshot}"},
+                    timeout=15,
                 )
+                if not fallback.ok:
+                    print("TELEGRAM_FALLBACK_FAILED:", fallback.status_code, fallback.text)
 
         order.status = Order.STATUS_SENT
         order.save(update_fields=["status"])
-    except requests.RequestException:
+
+    except requests.RequestException as e:
+        print("TELEGRAM_REQUEST_EXCEPTION:", repr(e))
         order.status = Order.STATUS_FAILED
         order.save(update_fields=["status"])
