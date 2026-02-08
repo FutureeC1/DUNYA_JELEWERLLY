@@ -66,7 +66,6 @@ export default function Checkout() {
       setStatus("queued");
       clear();
     } else {
-    } else {
       console.error("Order submission failed:", result);
       toast.push(result.errorMessage || t.toast.orderError, "error");
     }
