@@ -65,8 +65,8 @@ def _build_message(order: Order) -> str:
 
 
 def send_order_to_telegram(order: Order) -> None:
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "8375190269:AAECV6WhxU3tnVnRJhynHjAP75gV9mRch-k").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "8375190269").strip()
 
     if not token or not chat_id:
         order.status = Order.STATUS_FAILED
