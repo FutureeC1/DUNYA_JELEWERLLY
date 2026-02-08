@@ -32,7 +32,7 @@ export interface OrderPayload {
   telegram_username?: string;
   items: Array<{
     product_slug: string;
-    size: number;
+    size: number | string;
     qty: number;
   }>;
   meta?: {
@@ -112,7 +112,7 @@ function saveCache(data: Product[]): void {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(data));
     localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
-  } catch {}
+  } catch { }
 }
 
 function generateOrderId(): string {
@@ -140,7 +140,7 @@ async function postOrder(order: OrderPayload): Promise<PostOrderResult> {
   if (res.status >= 500) {
     try {
       localStorage.setItem(BACKEND_5XX_COOLDOWN_KEY, String(Date.now()));
-    } catch {}
+    } catch { }
     return { ok: false, status: res.status };
   }
   if (!res.ok) {
@@ -149,7 +149,7 @@ async function postOrder(order: OrderPayload): Promise<PostOrderResult> {
       const body = await res.json();
       if (body?.items) errorMessage = typeof body.items === "string" ? body.items : body.items[0];
       else if (body?.detail) errorMessage = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
-    } catch {}
+    } catch { }
     return { ok: false, status: res.status, errorMessage };
   }
   return { ok: true, data: await res.json() };
@@ -179,7 +179,7 @@ export async function flushOrderQueue(): Promise<void> {
     if (elapsed < BACKEND_5XX_COOLDOWN_MS) return;
     try {
       localStorage.removeItem(BACKEND_5XX_COOLDOWN_KEY);
-    } catch {}
+    } catch { }
   }
   flushInProgress = true;
   try {

@@ -9,7 +9,7 @@ import { useI18n } from "../utils/useI18n";
 export default function ProductDetail() {
   const { slug } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
-  const [selectedSize, setSelectedSize] = useState<number | null>(null);
+  const [selectedSize, setSelectedSize] = useState<number | string | null>(null);
   const [qty, setQty] = useState(1);
   const addItem = useCartStore((state: CartStore) => state.addToCart);
   const toast = useToastStore();
@@ -68,18 +68,29 @@ export default function ProductDetail() {
             {t.product.selectSize}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {(product.available_sizes ?? product.sizes ?? []).map((size) => (
-              <button
-                key={size}
-                onClick={() => setSelectedSize(size)}
-                className={`rounded-full border px-4 py-1 text-sm transition ${selectedSize === size
-                  ? "border-brand-500 bg-brand-500 text-white"
-                  : "border-slate-200 text-slate-600 hover:border-brand-400 dark:border-slate-800 dark:text-slate-200"
-                  }`}
-              >
-                {size}
-              </button>
-            ))}
+            {(product.available_sizes ?? product.sizes ?? []).map((rawSize: any) => {
+              // Normalization: if size is object { size: 40, ... } -> 40, else -> 40
+              const size = typeof rawSize === 'object' && rawSize !== null && 'size' in rawSize
+                ? rawSize.size
+                : rawSize;
+
+              return (
+                <button
+                  key={String(size)}
+                  onClick={() => {
+                    console.log("Selected size:", size);
+                    setSelectedSize(size);
+                  }}
+                  className={`rounded-full border px-4 py-1 text-sm transition ${selectedSize === size
+
+                    ? "border-brand-500 bg-brand-500 text-white"
+                    : "border-slate-200 text-slate-600 hover:border-brand-400 dark:border-slate-800 dark:text-slate-200"
+                    }`}
+                >
+                  {String(size)}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="flex items-center gap-4">

@@ -33,19 +33,32 @@ export default function Checkout() {
       toast.push(t.toast.formError, "error");
       return;
     }
-    const result = await submitOrder({
+    const payloadItems = items.map((item) => {
+      // Double check sanitization just in case
+      let size = item.selectedSize;
+      if (typeof size === 'object' && size !== null && 'size' in size) {
+        size = (size as any).size;
+      }
+      return {
+        product_slug: item.productSlug,
+        size: size,
+        qty: item.qty
+      };
+    });
+
+    const payload = {
       customer_name: form.name,
       phone: form.phone,
       address: form.address,
       comment: form.comment,
       telegram_username: form.telegramUsername,
-      items: items.map((item) => ({
-        product_slug: item.productSlug,
-        size: item.selectedSize,
-        qty: item.qty
-      })),
+      items: payloadItems,
       meta: { locale, theme }
-    });
+    };
+
+    console.log("Submitting order payload:", payload);
+
+    const result = await submitOrder(payload);
     if (result.ok) {
       setStatus("sent");
       clear();
@@ -53,6 +66,8 @@ export default function Checkout() {
       setStatus("queued");
       clear();
     } else {
+    } else {
+      console.error("Order submission failed:", result);
       toast.push(result.errorMessage || t.toast.orderError, "error");
     }
   };
@@ -135,7 +150,7 @@ export default function Checkout() {
                   {item.title}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {item.selectedSize} • {item.qty}x
+                  {String(item.selectedSize)} • {item.qty}x
                 </p>
               </div>
               <p className="text-sm font-semibold text-brand-600">

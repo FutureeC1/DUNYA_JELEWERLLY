@@ -7,17 +7,17 @@ export interface CartItem {
   imageUrl: string;
   price: number;
   priceUZS: number;
-  selectedSize: number;
+  selectedSize: number | string;
   qty: number;
 }
 
 export interface CartStore {
   items: CartItem[];
-  addToCart: (product: any, size: number) => void;
-  removeFromCart: (productSlug: string, size: number) => void;
-  updateQuantity: (productSlug: string, size: number, qty: number) => void;
-  removeItem: (productSlug: string, size: number) => void;
-  updateQty: (productSlug: string, size: number, qty: number) => void;
+  addToCart: (product: any, size: number | string) => void;
+  removeFromCart: (productSlug: string, size: number | string) => void;
+  updateQuantity: (productSlug: string, size: number | string, qty: number) => void;
+  removeItem: (productSlug: string, size: number | string) => void;
+  updateQty: (productSlug: string, size: number | string, qty: number) => void;
   clear: () => void;
   getTotal: () => number;
 }
@@ -32,7 +32,7 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
 
-      addToCart: (product: any, size: number) => {
+      addToCart: (product: any, size: number | string) => {
         const currentItems = get().items;
         const existingItem = currentItems.find(
           (item: CartItem) => item.productSlug === product.slug && item.selectedSize === size
@@ -61,7 +61,7 @@ export const useCartStore = create<CartStore>()(
         }
       },
 
-      removeFromCart: (productSlug: string, size: number) => {
+      removeFromCart: (productSlug: string, size: number | string) => {
         set((state: CartStore) => ({
           items: state.items.filter(
             (item: CartItem) => !(item.productSlug === productSlug && item.selectedSize === size)
@@ -69,7 +69,7 @@ export const useCartStore = create<CartStore>()(
         }));
       },
 
-      updateQuantity: (productSlug: string, size: number, qty: number) => {
+      updateQuantity: (productSlug: string, size: number | string, qty: number) => {
         if (qty <= 0) {
           get().removeFromCart(productSlug, size);
           return;
@@ -86,11 +86,11 @@ export const useCartStore = create<CartStore>()(
 
       clear: () => set(() => ({ items: [] })),
 
-      removeItem: (productSlug: string, size: number) => {
+      removeItem: (productSlug: string, size: number | string) => {
         get().removeFromCart(productSlug, size);
       },
 
-      updateQty: (productSlug: string, size: number, qty: number) => {
+      updateQty: (productSlug: string, size: number | string, qty: number) => {
         get().updateQuantity(productSlug, size, qty);
       },
 
