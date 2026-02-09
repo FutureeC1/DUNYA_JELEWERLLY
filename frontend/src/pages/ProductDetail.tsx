@@ -57,7 +57,7 @@ export default function ProductDetail() {
             {product.title}
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            {(product.available_sizes ?? product.sizes ?? []).length > 0 ? t.product.inStock : t.product.outOfStock}
+            {(product.sizes ?? product.sizes ?? []).length > 0 ? t.product.inStock : t.product.outOfStock}
           </p>
         </div>
         <p className="text-2xl font-semibold text-brand-600">
@@ -68,7 +68,7 @@ export default function ProductDetail() {
             {t.product.selectSize}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {(product.available_sizes ?? product.sizes ?? []).map((rawSize: any) => {
+            {(product.sizes ?? product.sizes ?? []).map((rawSize: any) => {
               // Strict parsing logic
               let size: number | null = null;
 

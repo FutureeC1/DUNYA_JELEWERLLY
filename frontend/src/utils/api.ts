@@ -246,6 +246,16 @@ export async function fetchProduct(slug: string): Promise<Product> {
 export async function fetchProductWithCache(slug: string): Promise<{
   product: Product | null;
   fromCache: boolean;
+}> export async function fetchProduct(slug: string): Promise<Product> {
+  const url = `${API.replace(/\/$/, "")}/api/products/${slug}/`;
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Failed to fetch product: ${response.statusText}`);
+  return response.json();
+}
+
+export async function fetchProductWithCache(slug: string): Promise<{
+  product: Product | null;
+  fromCache: boolean;
 }> {
   try {
     const product = await fetchProduct(slug);
@@ -259,10 +269,10 @@ export async function fetchProductWithCache(slug: string): Promise<{
 
 export async function fetchProducts(): Promise<Product[]> {
   const url = `${API.replace(/\/$/, "")}/api/products/`;
-  const response = await fetch(url);
-  if (!response.ok)
-    throw new Error(`Failed to fetch products: ${response.statusText}`);
-  return response.json();
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Failed to fetch products: ${response.statusText}`);
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
 }
 
 export function getApiBase(): string {
