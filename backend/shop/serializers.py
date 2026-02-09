@@ -1,11 +1,50 @@
-from typing import Any
+from __future__ import annotations
+
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 from django.db import transaction
 from rest_framework import serializers
 
 from .models import Order, OrderItem, Product
 from .services.telegram_service import send_order_to_telegram
+
+
+DECIMAL_SIZE_QUANT = Decimal("0.1")  # 15.5 -> 15.5 (1 знак после точки)
+
+
+def _to_decimal_size(value: Any) -> Decimal:
+    """
+    Приводит размер к Decimal с 1 знаком после точки.
+    Принимает: 15, 15.5, "15.5", "15,5"
+    """
+    if value is None:
+        raise serializers.ValidationError("Размер обязателен.")
+
+    s = str(value).strip().replace(",", ".")
+    try:
+        d = Decimal(s).quantize(DECIMAL_SIZE_QUANT)
+    except (InvalidOperation, ValueError):
+        raise serializers.ValidationError("Введите правильное число для размера.")
+    if d <= 0:
+        raise serializers.ValidationError("Размер должен быть больше 0.")
+    return d
+
+
+def _normalize_sizes_list(sizes: Any) -> list[Decimal]:
+    """
+    Product.sizes хранится в JSONField (может быть список чисел/строк).
+    Нормализуем всё в Decimal(0.1).
+    """
+    if not isinstance(sizes, list):
+        return []
+    out: list[Decimal] = []
+    for s in sizes:
+        try:
+            out.append(_to_decimal_size(s))
+        except serializers.ValidationError:
+            continue
+    return out
 
 
 class ProductListSerializer(serializers.ModelSerializer):
@@ -38,20 +77,17 @@ class OrderCustomerSerializer(serializers.Serializer):
 
 
 class OrderItemInputSerializer(serializers.Serializer):
-    # Frontend must send EXACT keys:
-    # { productSlug: "slug", qty: 1, selectedSize: 19.5 }
+    # Фронт должен отправлять ТОЧНО:
+    # { productSlug: "slug", qty: 1, selectedSize: 15.5 }
     productSlug = serializers.SlugField()
     qty = serializers.IntegerField(min_value=1)
 
-    # ✅ accepts 15.5 / "15.5"
+    # ВАЖНО: поддерживаем 15.5 (Decimal)
     selectedSize = serializers.DecimalField(max_digits=4, decimal_places=1)
 
     def validate_selectedSize(self, value: Decimal) -> Decimal:
-        # normalize to 1 decimal place
-        try:
-            return Decimal(str(value)).quantize(Decimal("0.1"))
-        except (InvalidOperation, ValueError, TypeError):
-            raise serializers.ValidationError("Введите правильное число.")
+        # Гарантируем 1 знак после точки и > 0
+        return _to_decimal_size(value)
 
 
 class OrderMetaSerializer(serializers.Serializer):
@@ -78,23 +114,6 @@ class OrderCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError("Items list cannot be empty.")
         return value
 
-    @staticmethod
-    def _to_decimal_1dp(v: Any) -> Decimal:
-        # Converts numbers/strings to Decimal with 1 decimal place
-        # Handles: 19, 19.0, 19.5, "19.5", "19,5"
-        s = str(v).strip().replace(",", ".")
-        return Decimal(s).quantize(Decimal("0.1"))
-
-    @classmethod
-    def _normalize_sizes_to_decimal(cls, sizes: list[Any]) -> list[Decimal]:
-        out: list[Decimal] = []
-        for s in (sizes or []):
-            try:
-                out.append(cls._to_decimal_1dp(s))
-            except (InvalidOperation, ValueError, TypeError):
-                continue
-        return out
-
     def create(self, validated_data: dict[str, Any]) -> Order:
         customer = validated_data["customer"]
         items_data = validated_data["items"]
@@ -114,12 +133,11 @@ class OrderCreateSerializer(serializers.Serializer):
             )
 
             subtotal = 0
+
             for item in items_data:
                 product_slug = item["productSlug"]
                 qty = int(item["qty"])
-
-                # ✅ already validated and quantized by OrderItemInputSerializer
-                requested_size: Decimal = item["selectedSize"]
+                selected_size: Decimal = _to_decimal_size(item["selectedSize"])
 
                 product = Product.objects.filter(slug=product_slug, in_stock=True).first()
                 if not product:
@@ -127,12 +145,10 @@ class OrderCreateSerializer(serializers.Serializer):
                         {"items": f"Product '{product_slug}' not found or out of stock."}
                     )
 
-                sizes_raw = product.sizes or []
-                sizes_dec = self._normalize_sizes_to_decimal(sizes_raw)
-
-                if requested_size not in sizes_dec:
+                available_sizes = _normalize_sizes_list(product.sizes)
+                if selected_size not in available_sizes:
                     raise serializers.ValidationError(
-                        {"items": f"Selected size {requested_size} is not available."}
+                        {"items": f"Selected size {selected_size} is not available."}
                     )
 
                 image_urls = product.image_urls or []
@@ -150,12 +166,12 @@ class OrderCreateSerializer(serializers.Serializer):
                     price_snapshot_uzs=product.price_uzs,
                     image_url_snapshot=image_urls[0],
                     qty=qty,
-                    selected_size=requested_size,  # ✅ Decimal (model must be DecimalField)
+                    selected_size=selected_size,  # ⚠️ это требует изменения модели (см. ниже)
                 )
 
             order.subtotal_uzs = subtotal
             order.save(update_fields=["subtotal_uzs"])
 
-        # After successful transaction: send to Telegram
+        # Отправка в Telegram после успешного коммита
         send_order_to_telegram(order)
         return order

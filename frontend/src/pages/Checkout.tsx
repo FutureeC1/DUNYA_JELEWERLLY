@@ -8,6 +8,16 @@ import { useI18n } from "../utils/useI18n";
 
 type Status = "idle" | "sent" | "queued" | "failed";
 
+function normalizeSizeToNumber(v: unknown): number | null {
+  // поддержка "15,5" "15.5" 15.5 15
+  const s = String(v ?? "").trim().replace(",", ".");
+  const n = Number(s);
+  if (!Number.isFinite(n) || n <= 0) return null;
+
+  // оставляем 1 знак после точки (как на бэке DecimalField decimal_places=1)
+  return Math.round(n * 10) / 10;
+}
+
 export default function Checkout() {
   const { items, clear } = useCartStore();
   const { locale, theme } = useUiStore();
@@ -38,46 +48,39 @@ export default function Checkout() {
       return;
     }
 
-    // Backend expects: items[].selectedSize as INTEGER (because DB uses PositiveIntegerField)
-    // Make sure every item has valid integer size.
+    // Проверка sizes
     for (const item of items) {
-      const sizeNumber = Number(String(item.selectedSize).replace(",", "."));
-      if (!Number.isFinite(sizeNumber)) {
-        toast.push(`Ошибка в товаре ${item.title}: некорректный размер`, "error");
-        return;
-      }
-      const sizeInt = Math.round(sizeNumber);
-      if (!Number.isFinite(sizeInt) || sizeInt <= 0) {
+      const size = normalizeSizeToNumber(item.selectedSize);
+      if (size === null) {
         toast.push(`Ошибка в товаре ${item.title}: некорректный размер`, "error");
         return;
       }
     }
 
+    // payload формата вашего бэка (customer/items/meta)
     const payload = {
       customer: {
         name: form.name,
         phone: form.phone,
         address: form.address,
-        comment: form.comment,
-        telegram_username: form.telegramUsername, // IMPORTANT: underscore like backend
+        comment: form.comment || "",
+        telegram_username: form.telegramUsername || "",
       },
       items: items.map((item) => {
-        const sizeNumber = Number(String(item.selectedSize).replace(",", "."));
-        const sizeInt = Math.round(sizeNumber);
-
+        const size = normalizeSizeToNumber(item.selectedSize)!;
         return {
-          productSlug: item.productSlug, // IMPORTANT: camelCase like backend serializer
+          productSlug: item.productSlug,
           qty: Number(item.qty),
-          selectedSize: sizeInt,
+          selectedSize: size, // 15.5 улетает как число
         };
       }),
       meta: { locale, theme },
     };
 
-    console.log("PAYLOAD_JSON", JSON.stringify(payload, null, 2));
+    console.log("Submitting order payload:", payload);
 
     try {
-      const result = await submitOrder(payload);
+      const result = await submitOrder(payload as any);
 
       if (result.ok) {
         setStatus("sent");
@@ -91,11 +94,10 @@ export default function Checkout() {
         return;
       }
 
-      console.error("Order submission failed:", result);
       setStatus("failed");
       toast.push(result.errorMessage || t.toast.orderError, "error");
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
       setStatus("failed");
       toast.push(t.toast.orderError, "error");
     }
@@ -149,9 +151,7 @@ export default function Checkout() {
           />
           <input
             value={form.telegramUsername}
-            onChange={(event) =>
-              setForm({ ...form, telegramUsername: event.target.value })
-            }
+            onChange={(event) => setForm({ ...form, telegramUsername: event.target.value })}
             placeholder="Telegram username (без @)"
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
           />
@@ -192,7 +192,7 @@ export default function Checkout() {
                   {item.title}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {item.selectedSize} • {item.qty}x
+                  {item.selectedSize} x {item.qty}
                 </p>
               </div>
               <p className="text-sm font-semibold text-brand-600">

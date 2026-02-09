@@ -11,18 +11,16 @@ const BACKEND_5XX_COOLDOWN_KEY = "orders_backend_5xx_cooldown_v1";
 const BACKEND_5XX_COOLDOWN_MS = 5 * 60 * 1000;
 
 export interface Product {
-  id: number;
+  id: string; // ✅ вместо number
   slug: string;
   title: string;
   description: string;
   price_uzs: number;
   image_urls: string[];
-  category?: string;
-  available_sizes?: number[];
-  sizes?: number[];
-  is_new?: boolean;
+  sizes?: (number | string)[];
   created_at: string;
 }
+
 
 export interface OrderPayload {
   customer_name: string;
@@ -205,9 +203,16 @@ async function getProducts(): Promise<Product[]> {
   const url = `${API.replace(/\/$/, "")}/api/products/`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
   const data = await res.json();
-  return Array.isArray(data) ? data : [];
+
+  // ✅ поддержка и массива, и пагинации DRF
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+
+  return [];
 }
+
 
 export async function fetchProductsWithRetry(): Promise<{
   data: Product[];
@@ -236,12 +241,17 @@ export async function fetchProductsWithRetry(): Promise<{
   return { data: loadCache(), error: "Не удалось загрузить товары." };
 }
 
-export async function fetchProduct(slug: string): Promise<Product> {
-  const url = `${API.replace(/\/$/, "")}/api/products/${slug}/`;
+export async function fetchProducts(): Promise<Product[]> {
+  const url = `${API.replace(/\/$/, "")}/api/products/`;
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed to fetch product: ${response.statusText}`);
-  return response.json();
+  if (!response.ok) throw new Error(`Failed to fetch products: ${response.statusText}`);
+
+  const data = await response.json();
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
 }
+
 
 export async function fetchProductWithCache(slug: string): Promise<{
   product: Product | null;
