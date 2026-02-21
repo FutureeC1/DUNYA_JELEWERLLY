@@ -4,6 +4,7 @@ import ApiStatusIndicator from "./ApiStatusIndicator";
 import Wishlist from "./Wishlist";
 import { useCartStore } from "../store/cartStore";
 import { useWishlistStore } from "../store/wishlistStore";
+import { useToastStore } from "../store/toastStore";
 import { useUiStore } from "../store/uiStore";
 import { useI18n } from "../utils/useI18n";
 
@@ -14,8 +15,10 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export default function Header() {
   const { toggleTheme, theme, toggleLocale, locale } = useUiStore();
   const items = useCartStore((state) => state.items);
+  const addToCart = useCartStore((state) => state.addToCart);
   const { items: wishlistItems, addToWishlist, removeFromWishlist } = useWishlistStore();
   const [showWishlist, setShowWishlist] = useState(false);
+  const toast = useToastStore();
   const t = useI18n();
 
   return (
@@ -72,8 +75,8 @@ export default function Header() {
           wishlist={wishlistItems}
           onRemoveFromWishlist={removeFromWishlist}
           onAddToCart={(product) => {
-            // Add to cart logic here
-            console.log('Adding to cart:', product);
+            addToCart(product, 16); // Default size 16
+            toast.push(t.toast.added, "success");
           }}
         />
       )}
