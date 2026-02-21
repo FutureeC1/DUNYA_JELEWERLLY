@@ -1,86 +1,123 @@
 import { Link } from "react-router-dom";
-import { useCartStore } from "../store/cartStore";
-import { useToastStore } from "../store/toastStore";
+import { Product } from "../utils/api";
 import { useI18n } from "../utils/useI18n";
+import { useCartStore, CartStore } from "../store/cartStore";
+import { useToastStore } from "../store/toastStore";
+import { useWishlistStore } from "../store/wishlistStore";
 
-export default function Cart() {
-  const { items, removeItem, updateQty } = useCartStore();
-  const toast = useToastStore();
+type Props = {
+  product: Product;
+};
+
+export default function ProductCard({ product }: Props) {
   const t = useI18n();
+  const toast = useToastStore();
+  const addToCart = useCartStore((s: CartStore) => s.addToCart);
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore();
 
-  const subtotal = items.reduce((sum, item) => sum + item.priceUZS * item.qty, 0);
+  const image = product.image_urls?.[0] || "/placeholder.jpg";
+  const price = product.price_uzs ?? 0;
 
-  if (items.length === 0) {
-    return (
-      <div className="rounded-3xl border border-dashed border-slate-200 p-10 text-center text-slate-500 dark:border-slate-800">
-        {t.cart.empty}
-      </div>
-    );
-  }
+  // Унифицируем размеры: иногда number/string/объект
+  const rawSizes = (product.sizes ?? product.available_sizes ?? []) as unknown[];
+  const sizes: number[] = rawSizes
+    .map((x) => {
+      if (typeof x === "number") return x;
+      if (typeof x === "string") {
+        const n = parseFloat(x.replace(",", "."));
+        return Number.isFinite(n) ? n : null;
+      }
+      if (typeof x === "object" && x !== null && "size" in x) {
+        const v = (x as any).size;
+        if (typeof v === "number") return v;
+        if (typeof v === "string") {
+          const n = parseFloat(v.replace(",", "."));
+          return Number.isFinite(n) ? n : null;
+        }
+      }
+      return null;
+    })
+    .filter((n): n is number => n !== null);
+
+  const inStock = sizes.length > 0;
+
+  const handleAddOne = () => {
+    // Если нет размеров — не даём добавить (иначе у вас ломается cartStore)
+    if (!inStock) {
+      toast.push(t.product.outOfStock, "error");
+      return;
+    }
+    // Берём первый доступный размер как дефолт (иначе пользователь не сможет добавить из карточки)
+    addToCart(product, sizes[0]);
+    toast.push(t.toast.added, "success");
+  };
+
+  const toggleWishlist = () => {
+    if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id);
+      toast.push(t.product.removeFromWishlist ?? "Удалено из избранного", "success");
+    } else {
+      addToWishlist(product);
+      toast.push(t.product.addToWishlist ?? "Добавлено в избранное", "success");
+    }
+  };
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">
-        {t.cart.title}
-      </h1>
-      <div className="space-y-6">
-        {items.map((item) => (
-          <div
-            key={`${item.productSlug}-${item.selectedSize}`}
-            className="flex flex-wrap items-center justify-between gap-6 rounded-3xl border border-slate-200/60 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
-          >
-            <div className="flex items-center gap-4">
-              <img
-                src={item.imageUrl}
-                alt={item.title}
-                className="h-20 w-20 rounded-2xl object-cover"
-              />
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-slate-500">{item.selectedSize}</p>
-                <p className="text-sm font-semibold text-brand-600">
-                  {item.priceUZS.toLocaleString("ru-RU")} UZS
-                </p>
-              </div>
+    <div className="group rounded-3xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <Link to={`/product/${product.slug}`} className="block">
+        <div className="overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
+          <img
+            src={image}
+            alt={product.title}
+            className="h-48 w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            loading="lazy"
+          />
+        </div>
+
+        <div className="mt-4 space-y-1">
+          <div className="text-sm text-slate-500">{product.category ?? ""}</div>
+          <div className="text-base font-semibold text-slate-900 dark:text-white line-clamp-2">
+            {product.title}
+          </div>
+
+          <div className="pt-2 flex items-center justify-between gap-3">
+            <div className="text-lg font-semibold text-brand-600">
+              {price.toLocaleString("ru-RU")} UZS
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 dark:border-slate-800">
-                <button onClick={() => updateQty(item.productSlug, item.selectedSize, item.qty - 1)}>
-                  -
-                </button>
-                <span className="text-sm font-semibold">{item.qty}</span>
-                <button onClick={() => updateQty(item.productSlug, item.selectedSize, item.qty + 1)}>
-                  +
-                </button>
-              </div>
-              <button
-                onClick={() => {
-                  removeItem(item.productSlug, item.selectedSize);
-                  toast.push(t.toast.removed, "success");
-                }}
-                className="text-xs uppercase tracking-[0.2em] text-slate-500 hover:text-red-500"
-              >
-                {t.cart.remove}
-              </button>
+
+            <div className={`text-xs ${inStock ? "text-emerald-600" : "text-slate-400"}`}>
+              {inStock ? t.product.inStock : t.product.outOfStock}
             </div>
           </div>
-        ))}
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200/60 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <div>
-          <p className="text-sm text-slate-500">{t.cart.total}</p>
-          <p className="text-2xl font-semibold text-brand-600">
-            {subtotal.toLocaleString("ru-RU")} UZS
-          </p>
         </div>
-        <Link
-          to="/checkout"
-          className="rounded-full bg-brand-600 px-6 py-3 text-xs uppercase tracking-[0.3em] text-white shadow-soft"
+      </Link>
+
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleAddOne}
+          className="flex-1 rounded-full bg-brand-600 px-4 py-2 text-xs uppercase tracking-[0.2em] text-white hover:bg-brand-700 disabled:opacity-50"
+          disabled={!inStock}
         >
-          {t.cart.checkout}
-        </Link>
+          {t.product.addToCart}
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleWishlist}
+          className={`rounded-full border px-3 py-2 text-sm transition-colors ${
+            isInWishlist(product.id)
+              ? "border-red-500 bg-red-50 text-red-500 dark:border-red-400 dark:bg-red-950 dark:text-red-400"
+              : "border-slate-200 bg-white text-slate-400 hover:border-red-400 hover:text-red-500 dark:border-slate-700 dark:bg-slate-900"
+          }`}
+          title={
+            isInWishlist(product.id)
+              ? t.product.removeFromWishlist ?? "Удалить из избранного"
+              : t.product.addToWishlist ?? "Добавить в избранное"
+          }
+        >
+          ❤
+        </button>
       </div>
     </div>
   );
