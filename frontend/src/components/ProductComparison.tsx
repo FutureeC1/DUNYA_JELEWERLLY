@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useCartStore, CartItem } from "../store/cartStore";
+import { motion } from "framer-motion";
 import { useI18n } from "../utils/useI18n";
 import { Product } from "../utils/api";
 
@@ -9,46 +8,44 @@ interface ProductComparisonProps {
   onClose: () => void;
 }
 
+const FEATURES = [
+  "material",
+  "stoneType",
+  "stoneSize",
+  "setting",
+  "weight",
+  "price",
+  "sizes",
+] as const;
+
+type FeatureKey = (typeof FEATURES)[number];
+
 export default function ProductComparison({ products, onClose }: ProductComparisonProps) {
   const t = useI18n();
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [selectedFeatures, setSelectedFeatures] = useState<FeatureKey[]>([]);
 
-  const features = [
-    "material",
-    "stoneType", 
-    "stoneSize",
-    "setting",
-    "weight",
-    "price",
-    "sizes"
-  ];
-
-  const toggleFeature = (feature: string) => {
-    setSelectedFeatures(prev =>
-      prev.includes(feature)
-        ? prev.filter(f => f !== feature)
-        : [...prev, feature]
+  const toggleFeature = (feature: FeatureKey) => {
+    setSelectedFeatures((prev) =>
+      prev.includes(feature) ? prev.filter((f) => f !== feature) : [...prev, feature]
     );
   };
 
-  const getFeatureValue = (product: Product, feature: string) => {
+  const getFeatureValue = (product: Product, feature: FeatureKey): string => {
     switch (feature) {
       case "material":
         return product.category || "N/A";
       case "stoneType":
-        return "Diamond"; // Would come from product data
+        return "Diamond";
       case "stoneSize":
-        return "1.5 ct"; // Would come from product data
+        return "1.5 ct";
       case "setting":
-        return "Prong"; // Would come from product data
+        return "Prong";
       case "weight":
-        return `${product.price_uzs / 100000}g`; // Approximate
+        return `${Math.round(product.price_uzs / 100000)}g`;
       case "price":
         return `${product.price_uzs.toLocaleString()} UZS`;
       case "sizes":
         return product.available_sizes?.join(", ") || "N/A";
-      default:
-        return "N/A";
     }
   };
 
@@ -69,6 +66,7 @@ export default function ProductComparison({ products, onClose }: ProductComparis
           </h2>
           <button
             onClick={onClose}
+            type="button"
             className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
           >
             ✕
@@ -81,10 +79,11 @@ export default function ProductComparison({ products, onClose }: ProductComparis
             {t.compare.selectFeatures}
           </h3>
           <div className="flex flex-wrap gap-2">
-            {features.map((feature) => (
+            {FEATURES.map((feature) => (
               <button
                 key={feature}
                 onClick={() => toggleFeature(feature)}
+                type="button"
                 className={`px-3 py-1 rounded-full text-sm transition-colors ${
                   selectedFeatures.includes(feature)
                     ? "bg-brand-500 text-white"
@@ -99,7 +98,12 @@ export default function ProductComparison({ products, onClose }: ProductComparis
 
         {/* Comparison Table */}
         <div className="overflow-y-auto max-h-[calc(90vh-300px)]">
-          <div className="grid" style={{ gridTemplateColumns: `repeat(${products.length + 1}, minmax(200px, 1fr))` }}>
+          <div
+            className="grid"
+            style={{
+              gridTemplateColumns: `repeat(${products.length + 1}, minmax(200px, 1fr))`,
+            }}
+          >
             {/* Feature Column */}
             <div className="p-4 bg-slate-50 dark:bg-slate-800">
               <div className="font-medium text-sm text-slate-700 dark:text-slate-300">
@@ -113,9 +117,8 @@ export default function ProductComparison({ products, onClose }: ProductComparis
             </div>
 
             {/* Product Columns */}
-            {products.map((product, index) => (
+            {products.map((product) => (
               <div key={product.id} className="p-4 border-l border-slate-200 dark:border-slate-800">
-                {/* Product Image */}
                 <div className="mb-4">
                   <img
                     src={product.image_urls?.[0] || "/placeholder.jpg"}
@@ -127,19 +130,23 @@ export default function ProductComparison({ products, onClose }: ProductComparis
                   </h3>
                 </div>
 
-                {/* Feature Values */}
                 {selectedFeatures.map((feature) => (
                   <div key={feature} className="py-3 text-sm text-slate-600 dark:text-slate-400">
                     {getFeatureValue(product, feature)}
                   </div>
                 ))}
 
-                {/* Actions */}
                 <div className="mt-4 space-y-2">
-                  <button className="w-full rounded-full bg-brand-500 px-4 py-2 text-sm text-white hover:bg-brand-600 transition-colors">
+                  <button
+                    type="button"
+                    className="w-full rounded-full bg-brand-500 px-4 py-2 text-sm text-white hover:bg-brand-600 transition-colors"
+                  >
                     {t.compare.addToCart}
                   </button>
-                  <button className="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
+                  <button
+                    type="button"
+                    className="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
                     {t.compare.viewDetails}
                   </button>
                 </div>
@@ -152,13 +159,12 @@ export default function ProductComparison({ products, onClose }: ProductComparis
         <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-between">
           <button
             onClick={() => setSelectedFeatures([])}
+            type="button"
             className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
           >
             {t.compare.clearSelection}
           </button>
-          <div className="text-sm text-slate-500 dark:text-slate-400">
-            {t.compare.maxProducts}
-          </div>
+          <div className="text-sm text-slate-500 dark:text-slate-400">{t.compare.maxProducts}</div>
         </div>
       </motion.div>
     </div>

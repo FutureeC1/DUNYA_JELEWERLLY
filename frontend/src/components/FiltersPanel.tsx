@@ -2,16 +2,30 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "../utils/useI18n";
 
+const MATERIALS = ["gold", "silver", "platinum"] as const;
+type MaterialKey = (typeof MATERIALS)[number];
+
+const STONE_TYPES = ["diamond", "ruby", "emerald", "sapphire", "none"] as const;
+type StoneTypeKey = (typeof STONE_TYPES)[number];
+
+const SIZES = ["16", "17", "18", "19", "20", "21", "22"] as const;
+type SizeKey = (typeof SIZES)[number];
+
+const STYLES = ["classic", "modern", "vintage"] as const;
+type StyleKey = (typeof STYLES)[number];
+
+type Filters = {
+  material: "" | MaterialKey;
+  stoneType: "" | StoneTypeKey;
+  size: "" | SizeKey;
+  priceRange: [number, number];
+  style: "" | StyleKey;
+  inStock: boolean;
+};
+
 interface FiltersPanelProps {
-  filters: {
-    material: string;
-    stoneType: string;
-    size: string;
-    priceRange: [number, number];
-    style: string;
-    inStock: boolean;
-  };
-  onFiltersChange: (filters: any) => void;
+  filters: Filters;
+  onFiltersChange: (filters: Filters) => void;
   onReset: () => void;
 }
 
@@ -19,21 +33,18 @@ export default function FiltersPanel({ filters, onFiltersChange, onReset }: Filt
   const t = useI18n();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const materials = ["gold", "silver", "platinum"];
-  const stoneTypes = ["diamond", "ruby", "emerald", "sapphire", "none"];
-  const sizes = ["16", "17", "18", "19", "20", "21", "22"];
-  const styles = ["classic", "modern", "vintage"];
-
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = <K extends keyof Filters>(key: K, value: Filters[K]) => {
     onFiltersChange({
       ...filters,
       [key]: value,
     });
   };
 
-  const handlePriceRangeChange = (index: number, value: string) => {
+  const handlePriceRangeChange = (index: 0 | 1, value: string) => {
+    const n = Number.parseInt(value, 10);
     const newPriceRange: [number, number] = [...filters.priceRange];
-    newPriceRange[index] = parseInt(value) || 0;
+    newPriceRange[index] = Number.isFinite(n) ? n : 0;
+
     onFiltersChange({
       ...filters,
       priceRange: newPriceRange,
@@ -45,14 +56,12 @@ export default function FiltersPanel({ filters, onFiltersChange, onReset }: Filt
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex items-center justify-between w-full mb-4 text-left"
+        type="button"
       >
         <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
           {t.catalog.filters.title}
         </h3>
-        <motion.div
-          animate={{ rotate: isExpanded ? 180 : 0 }}
-          className="text-slate-500"
-        >
+        <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} className="text-slate-500">
           ▼
         </motion.div>
       </button>
@@ -74,11 +83,11 @@ export default function FiltersPanel({ filters, onFiltersChange, onReset }: Filt
                 </label>
                 <select
                   value={filters.material}
-                  onChange={(e) => handleFilterChange("material", e.target.value)}
+                  onChange={(e) => handleFilterChange("material", (e.target.value as Filters["material"]) ?? "")}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
                 >
                   <option value="">{t.catalog.filters.all}</option>
-                  {materials.map((material) => (
+                  {MATERIALS.map((material) => (
                     <option key={material} value={material}>
                       {t.catalog.filters.materials[material]}
                     </option>
@@ -93,11 +102,11 @@ export default function FiltersPanel({ filters, onFiltersChange, onReset }: Filt
                 </label>
                 <select
                   value={filters.stoneType}
-                  onChange={(e) => handleFilterChange("stoneType", e.target.value)}
+                  onChange={(e) => handleFilterChange("stoneType", (e.target.value as Filters["stoneType"]) ?? "")}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
                 >
                   <option value="">{t.catalog.filters.all}</option>
-                  {stoneTypes.map((stone) => (
+                  {STONE_TYPES.map((stone) => (
                     <option key={stone} value={stone}>
                       {t.catalog.filters.stoneTypes[stone]}
                     </option>
@@ -112,11 +121,11 @@ export default function FiltersPanel({ filters, onFiltersChange, onReset }: Filt
                 </label>
                 <select
                   value={filters.size}
-                  onChange={(e) => handleFilterChange("size", e.target.value)}
+                  onChange={(e) => handleFilterChange("size", (e.target.value as Filters["size"]) ?? "")}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
                 >
                   <option value="">{t.catalog.filters.all}</option>
-                  {sizes.map((size) => (
+                  {SIZES.map((size) => (
                     <option key={size} value={size}>
                       {t.catalog.filters.sizes[size]}
                     </option>
@@ -155,11 +164,11 @@ export default function FiltersPanel({ filters, onFiltersChange, onReset }: Filt
                 </label>
                 <select
                   value={filters.style}
-                  onChange={(e) => handleFilterChange("style", e.target.value)}
+                  onChange={(e) => handleFilterChange("style", (e.target.value as Filters["style"]) ?? "")}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
                 >
                   <option value="">{t.catalog.filters.all}</option>
-                  {styles.map((style) => (
+                  {STYLES.map((style) => (
                     <option key={style} value={style}>
                       {t.catalog.filters.styles[style]}
                     </option>
@@ -176,10 +185,7 @@ export default function FiltersPanel({ filters, onFiltersChange, onReset }: Filt
                   onChange={(e) => handleFilterChange("inStock", e.target.checked)}
                   className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-400 dark:border-slate-600 dark:bg-slate-900"
                 />
-                <label
-                  htmlFor="inStock"
-                  className="ml-2 text-sm text-slate-700 dark:text-slate-300"
-                >
+                <label htmlFor="inStock" className="ml-2 text-sm text-slate-700 dark:text-slate-300">
                   {t.catalog.filters.inStockOnly}
                 </label>
               </div>
@@ -187,6 +193,7 @@ export default function FiltersPanel({ filters, onFiltersChange, onReset }: Filt
               {/* Reset Button */}
               <button
                 onClick={onReset}
+                type="button"
                 className="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 shadow-sm outline-none focus:border-brand-400 dark:border-slate-800 dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 {t.catalog.filters.reset}
