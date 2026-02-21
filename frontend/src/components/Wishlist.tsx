@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "../utils/useI18n";
 import { Product } from "../utils/api";
+import { useCartStore } from "../store/cartStore";
 
 interface WishlistProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface WishlistProps {
 
 export default function Wishlist({ isOpen, onClose, wishlist, onRemoveFromWishlist, onAddToCart }: WishlistProps) {
   const t = useI18n();
+  const addToCart = useCartStore((state) => state.addToCart);
 
   if (!isOpen) return null;
 
@@ -84,7 +86,30 @@ export default function Wishlist({ isOpen, onClose, wishlist, onRemoveFromWishli
                   {/* Actions */}
                   <div className="flex gap-2 mt-4">
                     <button
-                      onClick={() => onAddToCart(product)}
+                      onClick={() => {
+                        // Добавляем товар в корзину с первым доступным размером
+                        const sizes = product.sizes || product.available_sizes || [];
+                        let firstSize = 16; // размер по умолчанию
+                        
+                        if (Array.isArray(sizes) && sizes.length > 0) {
+                          const firstSizeItem = sizes[0];
+                          let firstSizeValue = 16;
+                          
+                          if (typeof firstSizeItem === 'number') {
+                            firstSizeValue = firstSizeItem;
+                          } else if (typeof firstSizeItem === 'string') {
+                            const sizeNumber = parseFloat((firstSizeItem as string).replace(',', '.'));
+                            firstSize = isNaN(sizeNumber) ? 16 : sizeNumber;
+                          } else if (typeof firstSizeItem === 'object' && firstSizeItem !== null && 'size' in firstSizeItem) {
+                            const s = (firstSizeItem as any).size;
+                            if (typeof s === 'number') firstSizeValue = s;
+                            else if (typeof s === 'string') firstSizeValue = parseFloat(s.replace(/,/g, '.'));
+                          }
+                        }
+                        
+                        addToCart(product, firstSize);
+                        onAddToCart(product);
+                      }}
                       className="flex-1 rounded-full bg-brand-500 px-3 py-2 text-xs text-white hover:bg-brand-600 transition-colors"
                     >
                       {t.wishlist.addToCart}
