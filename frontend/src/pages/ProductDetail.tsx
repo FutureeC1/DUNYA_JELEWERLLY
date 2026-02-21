@@ -1,23 +1,40 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useCartStore, CartStore } from "../store/cartStore";
+import { useWishlistStore } from "../store/wishlistStore";
 import { useToastStore } from "../store/toastStore";
-import { Product, fetchProductWithCache } from "../utils/api";
+import { Product, fetchProductsWithRetry, fetchProductWithCache } from "../utils/api";
 import { useI18n } from "../utils/useI18n";
+import Breadcrumbs from "../components/Breadcrumbs";
+import ProductCard from "../components/ProductCard";
 
 export default function ProductDetail() {
   const { slug } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [qty, setQty] = useState(1);
   const addItem = useCartStore((state: CartStore) => state.addToCart);
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore();
   const toast = useToastStore();
   const t = useI18n();
 
   useEffect(() => {
     if (!slug) return;
-    fetchProductWithCache(slug).then((r) => setProduct(r.product));
+    
+    // Load current product
+    fetchProductWithCache(slug).then((r) => {
+      setProduct(r.product);
+      
+      // Load related products
+      fetchProductsWithRetry().then((result) => {
+        const related = result.data
+          .filter((p: Product) => p.id !== r.product.id && p.category === r.product.category)
+          .slice(0, 4);
+        setRelatedProducts(related);
+      });
+    });
   }, [slug]);
 
   if (!product) {
@@ -39,8 +56,30 @@ export default function ProductDetail() {
     toast.push(t.toast.added, "success");
   };
 
+  const handleWishlistToggle = () => {
+    if (!product) return;
+    
+    if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id);
+      toast.push("Удалено из избранного", "success");
+    } else {
+      addToWishlist(product);
+      toast.push("Добавлено в избранное", "success");
+    }
+  };
+
   return (
-    <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+    <div className="space-y-8">
+      {/* Breadcrumbs */}
+      <Breadcrumbs 
+        items={[
+          { label: t.nav.catalog, path: "/catalog" },
+          { label: product.category || "Кольца", path: "/catalog" },
+          { label: product.title }
+        ]}
+      />
+      
+      <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="overflow-hidden rounded-[32px] border border-slate-200/60 bg-slate-100 dark:border-slate-800">
           <img
@@ -52,7 +91,6 @@ export default function ProductDetail() {
       </motion.div>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
         <div>
-
           <h1 className="mt-2 text-3xl font-semibold text-slate-900 dark:text-white">
             {product.title}
           </h1>
@@ -60,9 +98,24 @@ export default function ProductDetail() {
             {(product.sizes ?? product.sizes ?? []).length > 0 ? t.product.inStock : t.product.outOfStock}
           </p>
         </div>
-        <p className="text-2xl font-semibold text-brand-600">
-          {product.price_uzs.toLocaleString("ru-RU")} UZS
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-2xl font-semibold text-brand-600">
+            {product.price_uzs.toLocaleString("ru-RU")} UZS
+          </p>
+          <button
+            onClick={handleWishlistToggle}
+            className={`p-3 rounded-full border transition-colors ${
+              isInWishlist(product.id)
+                ? "border-red-500 bg-red-50 text-red-500 dark:border-red-400 dark:bg-red-950 dark:text-red-400"
+                : "border-slate-200 bg-white text-slate-400 hover:border-red-400 hover:text-red-500 dark:border-slate-700 dark:bg-slate-900"
+            }`}
+            title={isInWishlist(product.id) ? "Удалить из избранного" : "Добавить в избранное"}
+          >
+            <svg className="w-5 h-5" fill={isInWishlist(product.id) ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </button>
+        </div>
         <div>
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
             {t.product.selectSize}
@@ -136,6 +189,28 @@ export default function ProductDetail() {
           <p className="mt-2 text-sm text-slate-500">{product.description}</p>
         </div>
       </motion.div>
+      </div>
+      
+      {/* Related Products */}
+      {relatedProducts.length > 0 && (
+        <div className="space-y-6">
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">
+            Похожие товары
+          </h2>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {relatedProducts.map((relatedProduct) => (
+              <motion.div
+                key={relatedProduct.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <ProductCard product={relatedProduct} />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

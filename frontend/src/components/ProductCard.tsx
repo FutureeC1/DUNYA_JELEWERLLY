@@ -4,9 +4,11 @@ import { Product } from "../utils/api";
 
 interface ProductCardProps {
   product: Product;
+  onCompare?: (product: Product) => void;
+  isComparing?: boolean;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, onCompare, isComparing = false }: ProductCardProps) {
   return (
     <motion.div
       whileHover={{ y: -4 }}
@@ -21,10 +23,29 @@ export default function ProductCard({ product }: ProductCardProps) {
           />
         </div>
         <div className="space-y-2 p-5">
-
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-            {product.title}
-          </h3>
+          <div className="flex items-start justify-between">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex-1">
+              {product.title}
+            </h3>
+            {onCompare && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  onCompare(product);
+                }}
+                className={`ml-2 p-2 rounded-full border transition-colors ${
+                  isComparing
+                    ? "border-brand-500 bg-brand-500 text-white"
+                    : "border-slate-200 bg-white text-slate-400 hover:border-brand-400 hover:text-brand-500 dark:border-slate-700 dark:bg-slate-800"
+                }`}
+                title={isComparing ? "Убрать из сравнения" : "Добавить к сравнению"}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </button>
+            )}
+          </div>
           <p className="text-sm text-slate-500 line-clamp-2">
             {product.description}
           </p>
