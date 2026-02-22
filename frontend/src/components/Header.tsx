@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import ApiStatusIndicator from "./ApiStatusIndicator";
-import Wishlist from "./Wishlist";
 import { useCartStore } from "../store/cartStore";
-import { useWishlistStore } from "../store/wishlistStore";
 import { useToastStore } from "../store/toastStore";
 import { useUiStore } from "../store/uiStore";
 import { useI18n } from "../utils/useI18n";
@@ -15,9 +13,6 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export default function Header() {
   const { toggleTheme, theme, toggleLocale, locale } = useUiStore();
   const items = useCartStore((state) => state.items);
-  const addToCart = useCartStore((state) => state.addToCart);
-  const { items: wishlistItems, addToWishlist, removeFromWishlist } = useWishlistStore();
-  const [showWishlist, setShowWishlist] = useState(false);
   const toast = useToastStore();
   const t = useI18n();
 
@@ -41,12 +36,6 @@ export default function Header() {
         <div className="flex items-center gap-3">
           <ApiStatusIndicator />
           <button
-            onClick={() => setShowWishlist(true)}
-            className="rounded-full border border-slate-200 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-600 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-700 dark:text-slate-200 relative"
-          >
-            ❤️ ({wishlistItems.length})
-          </button>
-          <button
             onClick={toggleLocale}
             className="rounded-full border border-slate-200 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-600 transition hover:border-brand-400 hover:text-brand-600 dark:border-slate-700 dark:text-slate-200"
           >
@@ -66,20 +55,6 @@ export default function Header() {
           </NavLink>
         </div>
       </div>
-      
-      {/* Wishlist Modal */}
-      {showWishlist && (
-        <Wishlist
-          isOpen={showWishlist}
-          onClose={() => setShowWishlist(false)}
-          wishlist={wishlistItems}
-          onRemoveFromWishlist={removeFromWishlist}
-          onAddToCart={(product) => {
-            addToCart(product, 16); // Default size 16
-            toast.push(t.toast.added, "success");
-          }}
-        />
-      )}
     </header>
   );
 }
