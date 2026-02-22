@@ -45,7 +45,6 @@ export default function Wishlist({ isOpen, onClose, wishlist, onRemoveFromWishli
         <div className="overflow-y-auto max-h-[calc(90vh-140px)] p-4 sm:p-6">
           {wishlist.length === 0 ? (
             <div className="text-center py-8 sm:py-12">
-              <div className="text-4xl sm:text-6xl mb-4">💝</div>
               <h3 className="text-base sm:text-lg font-medium text-slate-900 dark:text-white mb-2">
                 {t.wishlist.empty}
               </h3>

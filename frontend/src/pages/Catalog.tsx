@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import ProductCard from "../components/ProductCard";
 import FiltersPanel from "../components/FiltersPanel";
-import ProductComparison from "../components/ProductComparison";
 import { Product, fetchProductsWithRetry, loadCache } from "../utils/api";
 import { useI18n } from "../utils/useI18n";
 
@@ -41,8 +40,6 @@ export default function Catalog() {
     style: "",
     inStock: false,
   });
-  const [comparisonProducts, setComparisonProducts] = useState<Product[]>([]);
-  const [showComparison, setShowComparison] = useState(false);
   const t = useI18n();
 
   useEffect(() => {
@@ -127,18 +124,6 @@ export default function Catalog() {
     });
   };
 
-  const toggleComparison = (product: Product) => {
-    setComparisonProducts(prev => {
-      const exists = prev.find(p => p.id === product.id);
-      if (exists) {
-        return prev.filter(p => p.id !== product.id);
-      } else if (prev.length < 4) {
-        return [...prev, product];
-      }
-      return prev;
-    });
-  };
-
   return (
     <section className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -166,14 +151,6 @@ export default function Catalog() {
             <option value="priceAsc">{t.catalog.sortOptions.priceAsc}</option>
             <option value="priceDesc">{t.catalog.sortOptions.priceDesc}</option>
           </select>
-          {comparisonProducts.length > 0 && (
-            <button
-              onClick={() => setShowComparison(true)}
-              className="rounded-full border border-brand-500 bg-brand-50 px-4 py-2 text-sm text-brand-600 hover:bg-brand-100 dark:border-brand-400 dark:bg-brand-950 dark:text-brand-400"
-            >
-              Сравнить ({comparisonProducts.length})
-            </button>
-          )}
         </div>
       </div>
 
@@ -212,8 +189,6 @@ export default function Catalog() {
                 >
                   <ProductCard 
                     product={product} 
-                    onCompare={toggleComparison}
-                    isComparing={comparisonProducts.some(p => p.id === product.id)}
                   />
                 </motion.div>
               ))}
@@ -222,13 +197,6 @@ export default function Catalog() {
         </div>
       </div>
 
-      {/* Comparison Modal */}
-      {showComparison && (
-        <ProductComparison
-          products={comparisonProducts}
-          onClose={() => setShowComparison(false)}
-        />
-      )}
     </section>
   );
 }
