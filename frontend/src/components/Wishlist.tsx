@@ -24,35 +24,37 @@ export default function Wishlist({ isOpen, onClose, wishlist, onRemoveFromWishli
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden dark:bg-slate-900"
+        className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden dark:bg-slate-900"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800">
+          <h2 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white">
             {t.wishlist.title} ({wishlist.length})
           </h2>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            className="w-8 h-8 flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
           >
-            ✕
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {/* Wishlist Items */}
-        <div className="overflow-y-auto max-h-[calc(80vh-140px)] p-6">
+        <div className="overflow-y-auto max-h-[calc(90vh-140px)] p-4 sm:p-6">
           {wishlist.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">💝</div>
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+            <div className="text-center py-8 sm:py-12">
+              <div className="text-4xl sm:text-6xl mb-4">💝</div>
+              <h3 className="text-base sm:text-lg font-medium text-slate-900 dark:text-white mb-2">
                 {t.wishlist.empty}
               </h3>
-              <p className="text-slate-600 dark:text-slate-400">
+              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
                 {t.wishlist.emptyDescription}
               </p>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1">
               {wishlist.map((product) => (
                 <motion.div
                   key={product.id}
